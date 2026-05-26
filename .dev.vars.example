@@ -1,0 +1,16 @@
+# Cloudflare Workers AI
+AI=true
+
+# Telegram Bot
+TELEGRAM_TOKEN=your_telegram_bot_token_here
+
+# Google AI API
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
+# OR
+GOOGLE_API_KEY=your_google_ai_api_key_here
+
+# OpenRouter
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# Ollama (optional)
+OLLAMA_ENDPOINT=https://ollama.com

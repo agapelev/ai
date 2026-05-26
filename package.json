@@ -1,0 +1,68 @@
+{
+  "name": "@/agapelev/ai",
+  "description": "A simple chat application powered by Cloudflare Workers AI",
+  "private": true,
+  "cloudflare": {
+    "label": "LLM Chat App",
+    "products": [
+      "Workers",
+      "Workers AI",
+      "AI Gateway"
+    ],
+    "categories": [
+      "ai"
+    ],
+    "docs_url": "https://developers.cloudflare.com/workers-ai/",
+    "icon_urls": [],
+    "preview_image_url": "https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/153a71bf-d89c-4425-e510-0c7488f22500/public"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.14.3",
+    "@mantine/dates": "^7.14.3",
+    "@mantine/form": "^7.14.3",
+    "@mantine/hooks": "^7.14.3",
+    "@mantine/modals": "^7.14.3",
+    "@mantine/notifications": "^7.14.3",
+    "@mantine/spotlight": "^7.14.3",
+    "@tabler/icons-react": "^3.24.0",
+    "dayjs": "^1.11.13",
+    "grammy": "^1.39.2",
+    "newrelic": "^13.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^0.1.0",
+    "@cloudflare/vitest-pool-workers": "^0.8.71",
+    "@cloudflare/workers-types": "^4.20250425.0",
+    "@commitlint/cli": "^17.0.0",
+    "@commitlint/config-conventional": "^17.0.0",
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/node": "24.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/mocker": "^3.2.4",
+    "autoprefixer": "^10.4.20",
+    "husky": "^8.0.0",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "terser": "^5.48.0",
+    "typescript": "5.8.3",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7",
+    "wrangler": "4.21.x"
+  },
+  "type": "module",
+  "scripts": {
+    "prepare": "husky install",
+    "cf-typegen": "wrangler types",
+    "check": "tsc --noEmit && wrangler deploy --dry-run",
+    "build": "vite build",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "test": "vitest",
+    "husky:install": "husky install",
+    "lint:commits": "commitlint --from=HEAD~10",
+    "build:frontend": "vite build",
+    "dev:frontend": "vite",
+    "build:css": "tailwindcss -i ./public/styles.css -o ./public/dist.css"
+  }
+}

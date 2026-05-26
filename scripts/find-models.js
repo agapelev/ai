@@ -1,0 +1,59 @@
+/**
+ * Скрипт: find-models.js
+ * Назначение: Опрос Google API на предмет доступных моделей для вашего ключа.
+ * Документация: https://ai.google.dev/api/models
+ *
+ * Назидание: "Просите, и дано будет вам; ищите, и найдете" (Мф. 7:7).
+ * Мы ищем нужную модель, чтобы наш проект стоял на твердом основании актуальных технологий.
+ */
+
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// Получаем API ключ из аргументов командной строки (--key=ВАШ_КЛЮЧ) ИЛИ переменной окружения
+const args = process.argv.slice(2);
+const keyArg = args.find(a => a.startsWith('--key='));
+const API_KEY = keyArg ? keyArg.split('=')[1] : process.env.GOOGLE_API_KEY;
+
+if (!API_KEY) {
+    console.error("\x1b[31m%s\x1b[0m", "❌ Ошибка: API ключ не найден!");
+    console.log("\nИспользование:");
+    console.log("  node scripts/find-models.js --key=ВАШ_КЛЮЧ");
+    console.log("\nИли установи переменную окружения:");
+    console.log("  export GOOGLE_API_KEY='ВАШ_КЛЮЧ'");
+    process.exit(1);
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY);
+
+async function listModels() {
+    try {
+        console.log("\x1b[36m%s\x1b[0m", "⏳ Опрашиваю небесные чертоги Google API...");
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        console.log("\x1b[32m%s\x1b[0m", "✅ Доступные модели найдены:\n");
+
+        console.table(data.models.map(m => ({
+            "ID модели": m.name.replace('models/', ''),
+                                            "Описание": m.description || "—",
+                                            "Лимит токенов": m.inputTokenLimit || "N/A",
+                                            "Методы": (m.supportedGenerationMethods || []).join(", ")
+        })));
+
+        console.log("\n\x1b[33m%s\x1b[0m", "💡 Совет:");
+        console.log("Для кодинга используйте модели с 'flash' — они быстрее и дешевле.");
+        console.log("Для сложных рассуждений — 'pro' версии.");
+
+    } catch (error) {
+        console.error("\x1b[31m%s\x1b[0m", "❌ Ошибка:", error.message);
+        process.exit(1);
+    }
+}
+
+// Единственный вызов функции
+listModels();

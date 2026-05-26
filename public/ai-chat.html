@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Shekinah Mission AI Chat - Mantine Simple</title>
+    <meta name="description" content="AI-чат для Миссии Шехины с современным интерфейсом на Mantine">
+    
+    <style>
+        :root {
+            --mantine-primary-color-filled: #3b82f6;
+            --mantine-color-shekinah: #3b82f6;
+        }
+        
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #3b82f6;
+            margin: 0;
+        }
+        
+        .badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .select {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: white;
+            font-size: 0.875rem;
+            min-width: 150px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-light {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .btn-light:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+        
+        .btn-red {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .btn-red:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            min-width: 180px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            z-index: 1000;
+            margin-top: 5px;
+        }
+        
+        .dropdown.show .dropdown-content {
+            display: block;
+        }
+        
+        .dropdown-item {
+            display: block;
+            padding: 10px 15px;
+            color: #374151;
+            text-decoration: none;
+            transition: background 0.2s ease;
+            border-radius: 6px;
+            margin: 4px;
+        }
+        
+        .dropdown-item:hover {
+            background: #f3f4f6;
+            color: #3b82f6;
+        }
+        
+        .progress-container {
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress-container.show {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .progress-text {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #f9fafb;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+        
+        .message.assistant {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+        
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-bubble {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+        
+        .message.assistant .message-bubble {
+            background: white;
+        }
+        
+        .message-meta {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 44px;
+            max-height: 120px;
+        }
+        
+        .input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #111827;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 3000;
+            display: none;
+        }
+        
+        .notification.show {
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .controls {
+                justify-content: center;
+            }
+            
+            .input-container {
+                flex-direction: column;
+            }
+            
+            .input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <!-- Header -->
+            <div class="header">
+                <div>
+                    <h1 class="title">Shekinah Mission AI Chat</h1>
+                    <span class="badge">Powered by Web Arystan</span>
+                </div>
+                
+                <div class="controls">
+                    <select class="select" id="model-select">
+                        <option value="llama-3.3-70b">Llama-3.3-70b</option>
+                        <option value="llama-3-8b">Llama-3-8b</option>
+                        <option value="llama-4-scout-8b">Llama-4-Scout-8b</option>
+                        <option value="qwen-2.5-72b">Qwen-2.5-72b</option>
+                        <option value="mistral-7b">Mistral-7b</option>
+                    </select>
+                    
+                    <div class="dropdown" id="models-dropdown">
+                        <button class="btn btn-light" onclick="toggleDropdown()">
+                            О моделях ▼
+                        </button>
+                        <div class="dropdown-content">
+                            <a href="/templates/inspiration" target="_blank" class="dropdown-item">
+                                📄 HTML версия
+                            </a>
+                            <a href="/templates/inspiration.md" target="_blank" class="dropdown-item">
+                                📝 Markdown версия
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-light" onclick="toggleTheme()" title="Переключить тему">
+                        🌙
+                    </button>
+                    
+                    <button class="btn btn-red" onclick="showClearModal()" title="Очистить историю">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-text" id="progress-text">Отправка запроса...</div>
+            </div>
+
+            <!-- Messages -->
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        ✨ Привет! Я AI-ассистент "Апостол Царства AI". Как я могу вам помочь?
+                    </div>
+                    <div class="message-meta">AI</div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="input-container">
+                <textarea 
+                    class="input" 
+                    id="message-input" 
+                    placeholder="Введите сообщение..."
+                    rows="1"
+                    onkeypress="handleKeyPress(event)"
+                ></textarea>
+                <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">
+                    📤 Отправить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Modal -->
+    <div class="modal" id="clear-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Очистить историю чата</h2>
+            <p>Вы уверены, что хотите очистить всю историю чата? Это действие нельзя отменить.</p>
+            <div class="modal-actions">
+                <button class="btn btn-light" onclick="hideClearModal()">Отмена</button>
+                <button class="btn btn-red" onclick="clearHistory()">Очистить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Notification -->
+    <div class="notification" id="notification">
+        История чата успешно очищена
+    </div>
+
+    <script>
+        let isLoading = false;
+        let progressInterval = null;
+        let isDarkTheme = false;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('message-input');
+            
+            // Автоматическое изменение высоты textarea
+            input.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+        });
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('models-dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Закрытие dropdown при клике вне
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('models-dropdown');
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            const btn = event.target;
+            btn.textContent = isDarkTheme ? '☀️' : '🌙';
+            
+            if (isDarkTheme) {
+                document.body.style.background = 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)';
+                document.querySelector('.chat-container').style.background = 'rgba(0, 0, 0, 0.85)';
+                document.querySelector('.chat-container').style.color = '#ffffff';
+            } else {
+                document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                document.querySelector('.chat-container').style.background = 'rgba(255, 255, 255, 0.95)';
+                document.querySelector('.chat-container').style.color = '#000000';
+            }
+        }
+
+        function showClearModal() {
+            document.getElementById('clear-modal').classList.add('show');
+        }
+
+        function hideClearModal() {
+            document.getElementById('clear-modal').classList.remove('show');
+        }
+
+        function showNotification() {
+            const notification = document.getElementById('notification');
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function clearHistory() {
+            const messages = document.getElementById('messages');
+            messages.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        ✨ Привет! Я AI-ассистент "Апостол Царства AI". Как я могу вам помочь?
+                    </div>
+                    <div class="message-meta">AI</div>
+                </div>
+            `;
+            hideClearModal();
+            showNotification();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function showProgress() {
+            const container = document.getElementById('progress-container');
+            const fill = document.getElementById('progress-fill');
+            const text = document.getElementById('progress-text');
+            
+            container.classList.add('show');
+            let progress = 0;
+            
+            progressInterval = setInterval(() => {
+                progress = Math.min(progress + 5, 95);
+                fill.style.width = progress + '%';
+                
+                if (progress < 20) {
+                    text.textContent = 'Отправка запроса...';
+                } else if (progress < 50) {
+                    text.textContent = 'Обработка...';
+                } else if (progress < 80) {
+                    text.textContent = 'Генерация ответа...';
+                } else {
+                    text.textContent = 'Почти готово...';
+                }
+            }, 500);
+        }
+
+        function hideProgress() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
+            const fill = document.getElementById('progress-fill');
+            fill.style.width = '100%';
+            
+            setTimeout(() => {
+                document.getElementById('progress-container').classList.remove('show');
+                fill.style.width = '0%';
+            }, 500);
+        }
+
+        function addMessage(content, role = 'user') {
+            const messages = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const time = new Date().toLocaleTimeString();
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${content}</div>
+                <div class="message-meta">${role === 'user' ? 'Вы' : 'AI'} • ${time}</div>
+            `;
+            
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+            
+            const modelSelect = document.getElementById('model-select');
+            const selectedModel = modelSelect.value;
+            
+            // Добавляем сообщение пользователя
+            addMessage(message, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Показываем прогресс
+            isLoading = true;
+            showProgress();
+            
+            // Обновляем кнопку
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.innerHTML = '<span class="loading"></span> Отправка...';
+            sendBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: message }],
+                        model: selectedModel
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage(data.response, 'assistant');
+                } else {
+                    addMessage('❌ Произошла ошибка. Попробуйте еще раз.', 'assistant');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('❌ Произошла ошибка. Проверьте подключение к интернету.', 'assistant');
+            } finally {
+                // Скрываем прогресс
+                isLoading = false;
+                hideProgress();
+                
+                // Возвращаем кнопку
+                sendBtn.innerHTML = '📤 Отправить';
+                sendBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

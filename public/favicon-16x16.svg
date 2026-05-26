@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Фильтр для свечения -->
+  <defs>
+    <filter id="glow16">
+      <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Оранжевая звезда ✨ в центре -->
+  <g transform="translate(8,8)" filter="url(#glow16)">
+    <!-- Основная звезда оранжевая -->
+    <path d="M0,-4 L1,-1 L4,-0.5 L1.5,1 L1,4 L0,1.5 L-1,4 L-1.5,1 L-4,-0.5 L-1,-1 Z" 
+          fill="#fb923c" 
+          stroke="#f59e0b" 
+          stroke-width="0.3"/>
+    
+    <!-- Две жёлтые искры вокруг -->
+    <circle cx="-3" cy="-3" r="0.5" fill="#fbbf24" opacity="0.9"/>
+    <circle cx="3" cy="-3" r="0.4" fill="#fbbf24" opacity="0.8"/>
+  </g>
+</svg>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shekinah Mission AI Chat</title>
+    
+    <!-- Favicon с темой Shekinah -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/svg+xml" sizes="16x16" href="favicon-16x16.svg" />
+    <link rel="apple-touch-icon" href="favicon.svg" />
+    
+    <!-- Apply user's previously chosen theme (quickly, to avoid FOUC) -->
+    <script>
+      (function () {
+        try {
+          const t = localStorage.getItem('theme');
+          document.documentElement.setAttribute('data-theme', t ? t : 'dark');
+        } catch (e) {
+          /* failing silently keeps default dark */
+        }
+      })();
+    </script>
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Shekinah Mission AI Chat</h1>
+      <p>Powered by Web Arystan Workers AI</p>
+      <label for="model-select" class="model-label">Модель:</label>
+      <select id="model-select" aria-label="Выбор модели"></select>
+      <span id="model-status" class="model-status" title="Статус модели" aria-hidden="true">●</span>
+      <button id="theme-toggle" aria-label="Переключить тему">🌙</button>
+      <button id="clear-history" class="clear-history-btn" aria-label="Очистить историю" title="Очистить историю чата">🗑️</button>
+      <div class="models-dropdown-container">
+        <a href="templates/inspiration" target="_blank" rel="noopener" class="models-link">О моделях ▼</a>
+        <div class="models-dropdown" id="models-dropdown">
+          <a href="templates/inspiration" target="_blank" rel="noopener" class="dropdown-item">📄 HTML версия</a>
+          <a href="templates/inspiration.md" target="_blank" rel="noopener" class="dropdown-item">📝 Markdown версия</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="chat-container">
+      <div id="chat-messages" class="chat-messages"></div>
+
+      <!-- Scroll Buttons inside chat container -->
+      <button class="scroll-to-top" id="scrollToTop" title="Прокрутить вверх">↑</button>
+      <button class="scroll-to-bottom" id="scrollToBottom" title="Прокрутить вниз">↓</button>
+
+      <div class="typing-indicator" id="typing-indicator">
+        ИИ думает...
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-container" id="progress-container" style="display: none;">
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">
+          <span id="progress-time">0</span>с
+          <span id="progress-status">Обработка запроса...</span>
+        </div>
+      </div>
+
+      <!-- Message Input Panel -->
+      <div class="message-input-panel">
+        <div class="input-row">
+          <textarea
+            id="user-input"
+            placeholder="Введите сообщение..."
+            rows="1"
+            autofocus
+          ></textarea>
+          <div class="input-actions">
+            <div class="file-buttons">
+              <button class="file-btn" id="file-upload-btn" title="Загрузить файл">
+                📎 Файл
+              </button>
+              <input type="file" id="file-input" class="file-input-hidden" multiple accept=".js,.ts,.md,.mdx,.org,.txt,.json,.jpg,.jpeg,.png,.gif,.webp,.pdf">
+
+              <button class="file-btn" id="image-upload-btn" title="Загрузить изображение">
+                🖼️ Изображение
+              </button>
+              <input type="file" id="image-input" class="file-input-hidden" accept="image/*">
+            </div>
+            <button id="send-button">Отправить</button>
+          </div>
+        </div>
+
+        <div class="uploaded-files-container" id="uploaded-files-container"></div>
+      </div>
+    </div>
+
+    <footer>
+      <p>Web Development Studio Web Arystan AI Chat Template &copy; 2025</p>
+    </footer>
+
+    <!-- Mobile Input Panel Toggle -->
+    <button class="input-panel-toggle" id="input-panel-toggle" title="Открыть/закрыть панель ввода">⌨️</button>
+
+    <!-- Markdown renderer + sanitizer -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js" defer></script>
+    <script type="module" src="theme.js" defer></script>
+    <script type="module" src="chat.js" defer></script>
+  </body>
+</html>
