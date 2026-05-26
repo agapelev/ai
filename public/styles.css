@@ -119,6 +119,36 @@ header p {
   background-color: var(--accent-secondary);
 }
 
+#clear-history {
+  background-color: var(--error);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-right: 5px;
+}
+
+#clear-history:hover {
+  background-color: #dc2626;
+}
+
+#clear-models-cache {
+  background-color: var(--warning);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-right: 5px;
+}
+
+#clear-models-cache:hover {
+  background-color: #ea580c;
+}
+
 /* Контейнер для выпадающего меню */
 .models-dropdown-container {
   position: relative;

@@ -246,6 +246,15 @@ async function loadModels() {
   }
 }
 
+// Очистка кэша моделей и перезагрузка списка
+function clearModelsCache() {
+  localStorage.removeItem('cachedModels');
+  localStorage.removeItem('modelsCacheTime');
+  // Перезагружаем список моделей
+  loadModels();
+  alert('✅ Кэш моделей очищен! Список моделей обновлён.');
+}
+
 // Заполнение select моделями
 function populateModelSelect(data) {
   const { models = [], default: defaultKey, available = [] } = data;
@@ -432,6 +441,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add click listener for clear history button
   if (clearHistoryBtn) {
     clearHistoryBtn.addEventListener("click", clearChatHistory);
+  }
+  
+  // Add click listener for clear models cache button
+  const clearModelsCacheBtn = document.getElementById("clear-models-cache");
+  if (clearModelsCacheBtn) {
+    clearModelsCacheBtn.addEventListener("click", clearModelsCache);
   }
   
   // Setup mobile panel
