@@ -16,15 +16,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build frontend
+        run: npm run build:frontend
+
       - name: Deploy with Wrangler
         run: npm run deploy
         env:
-          # Set this secret in your GitHub repository settings -> Secrets -> Actions
-          # Token should have permissions to edit Workers and related resources
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
       - name: Smoke test deployed worker
         env:
-          # Optional: set DEPLOY_URL in repository secrets (e.g., https://ai.example.workers.dev)
           DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
         run: |
           URL=${DEPLOY_URL:-https://ai.dessyatykh.workers.dev}
