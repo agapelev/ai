@@ -1,0 +1,20 @@
+name = "ai-chat-app"
+main = "src/index.ts"
+compatibility_date = "2024-04-05"
+
+[vars]
+# Environment variables would be set in Cloudflare dashboard or via secrets
+# TELEGRAM_TOKEN = ""
+# GOOGLE_AI_API_KEY = ""
+# OPENROUTER_API_KEY = ""
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "020121147fd74090934814a66a8ef47c"
+preview_id = "rate_limit_kv_preview"
+
+[ai]
+binding = "AI"
+
+[site]
+bucket = "./public"
