@@ -11,8 +11,7 @@
 - Cloudflare Workers (TypeScript)
 - Telegram Bot API (grammy)
 - AI Providers: Cloudflare Workers AI, Google Gemini API, OpenRouter
-- Frontend: Vanilla JS + TailwindCSS (Vite для бандлинга)
-- React + Mantine (в процессе интеграции)
+- Frontend: Vanilla JS + TailwindCSS (Vite для бандлинга). Полный отказ от React + Mantine ради сохранения легкого, надежного одностраничного экспресс-чата.
 
 ---
 
@@ -281,7 +280,7 @@ npm run lint:commits    # Conventional commit check
 - ✅ Mobile UX
 
 ### В процессе:
-- ⚠️ React+Mantine интеграция
+- ❌ React+Mantine интеграция (полностью отменена решением Льва Николаевича; интерфейс остается чистым Vanilla JS + TailwindCSS чатом)
 - ⚠️ Vite bundling (terser dependency)
 - ⚠️ PostCSS warning
 

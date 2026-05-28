@@ -540,43 +540,7 @@ function setupModelsDropdown() {
   const modelsDropdown = document.getElementById('models-dropdown');
   
   if (!modelsContainer || !modelsLink || !modelsDropdown) return;
-  
-  // Добавляем тени через JavaScript для гарантии
-  modelsLink.style.boxShadow = '4px 4px 8px rgba(0, 0, 0, 0.3), -2px -2px 4px rgba(255, 255, 255, 0.1)';
-  modelsLink.style.display = 'inline-block';
-  modelsLink.style.position = 'relative';
-  modelsLink.style.zIndex = '10';
-  
-  modelsDropdown.style.boxShadow = '8px 8px 16px rgba(0, 0, 0, 0.4), -4px -4px 8px rgba(255, 255, 255, 0.1)';
-  
-  // Добавляем стили для dropdown items
-  const dropdownItems = modelsDropdown.querySelectorAll('.dropdown-item');
-  dropdownItems.forEach(item => {
-    item.style.color = 'var(--text-primary)';
-    item.style.transition = 'all 0.2s ease';
     
-    item.addEventListener('mouseenter', () => {
-      item.style.color = 'var(--warning)';
-      item.style.backgroundColor = 'rgba(251, 191, 36, 0.1)';
-    });
-    
-    item.addEventListener('mouseleave', () => {
-      item.style.color = 'var(--text-primary)';
-      item.style.backgroundColor = 'transparent';
-    });
-  });
-  
-  // Hover эффекты через JavaScript
-  modelsLink.addEventListener('mouseenter', () => {
-    modelsLink.style.boxShadow = '6px 6px 12px rgba(0, 0, 0, 0.4), -3px -3px 6px rgba(255, 255, 255, 0.15)';
-    modelsLink.style.transform = 'translateY(-1px)';
-  });
-  
-  modelsLink.addEventListener('mouseleave', () => {
-    modelsLink.style.boxShadow = '4px 4px 8px rgba(0, 0, 0, 0.3), -2px -2px 4px rgba(255, 255, 255, 0.1)';
-    modelsLink.style.transform = 'translateY(0)';
-  });
-  
   // Клик по ссылке - показываем/скрываем меню
   modelsLink.addEventListener('click', (e) => {
     e.preventDefault();

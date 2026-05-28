@@ -3,6 +3,7 @@ node_modules/
 .DS_Store
 /.wrangler/
 /.cache/
+N/
 dist/
 build/
 coverage/

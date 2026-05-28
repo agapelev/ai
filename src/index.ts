@@ -24,10 +24,10 @@ async function checkRateLimit(env: Env, ip: string): Promise<{ allowed: boolean;
   if (!env.RATE_LIMIT_KV) {
     return { allowed: true };
   }
-  
+
   const key = `rate_limit:${ip}`;
   const now = Math.floor(Date.now() / 1000);
-  
+
   try {
     // Получаем текущие данные
     const existing = await env.RATE_LIMIT_KV?.get(key);
@@ -39,9 +39,9 @@ async function checkRateLimit(env: Env, ip: string): Promise<{ allowed: boolean;
       }), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
       return { allowed: true };
     }
-    
+
     const data = JSON.parse(existing);
-    
+
     // Если окно истекло, сбрасываем счётчик
     if (now - data.windowStart >= RATE_LIMIT_WINDOW) {
       await env.RATE_LIMIT_KV?.put(key, JSON.stringify({
@@ -50,20 +50,20 @@ async function checkRateLimit(env: Env, ip: string): Promise<{ allowed: boolean;
       }), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
       return { allowed: true };
     }
-    
+
     // Проверяем лимит
     if (data.count >= RATE_LIMIT_REQUESTS) {
-      return { 
-        allowed: false, 
-        resetTime: data.windowStart + RATE_LIMIT_WINDOW 
+      return {
+        allowed: false,
+        resetTime: data.windowStart + RATE_LIMIT_WINDOW
       };
     }
-    
+
     // Увеличиваем счётчик
     data.count += 1;
     await env.RATE_LIMIT_KV?.put(key, JSON.stringify(data), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
     return { allowed: true };
-    
+
   } catch (error) {
     console.error("Rate limiting error:", error);
     // При ошибке rate limiting разрешаем запрос (fail open)
@@ -77,24 +77,24 @@ function validateRequest(requestData: any): { valid: boolean; error?: string } {
   if (!requestData.messages || !Array.isArray(requestData.messages)) {
     return { valid: false, error: "Отсутствуют сообщения или неверный формат" };
   }
-  
+
   // Проверяем количество сообщений
   if (requestData.messages.length > MAX_MESSAGES_IN_HISTORY) {
     return { valid: false, error: `Слишком много сообщений в истории (максимум ${MAX_MESSAGES_IN_HISTORY})` };
   }
-  
+
   // Проверяем длину сообщений
   for (const msg of requestData.messages) {
     if (typeof msg.content === 'string' && msg.content.length > MAX_MESSAGE_LENGTH) {
       return { valid: false, error: `Слишком длинное сообщение (максимум ${MAX_MESSAGE_LENGTH} символов)` };
     }
   }
-  
+
   // Проверяем модель
   if (requestData.model && typeof requestData.model !== 'string') {
     return { valid: false, error: "Неверный формат модели" };
   }
-  
+
   return { valid: true };
 }
 
@@ -304,22 +304,22 @@ async function retryWithBackoff<T>(
   baseDelay: number = 1000
 ): Promise<T> {
   let lastError: Error;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: any) {
       lastError = error;
-      
+
       if (attempt === maxRetries) {
         throw new Error(`Ошибка после ${maxRetries + 1} попыток: ${error.message}`);
       }
-      
+
       const delay = baseDelay * Math.pow(2, attempt);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
   throw lastError!;
 }
 
@@ -367,7 +367,7 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
   // Функция для выполнения запроса с конкретной моделью
   async function executeWithModel(currentModelKey: string): Promise<ChatResult> {
     const currentModelId = SUPPORTED_MODELS[currentModelKey] || SUPPORTED_MODELS[DEFAULT_MODEL_KEY];
-    
+
     let currentChatMessages = [...chatMessages];
     if (!currentChatMessages.some((msg) => msg.role === "system")) {
       const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace("{MODEL_NAME}", currentModelKey);
@@ -381,7 +381,7 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
       content = await handleOpenRouterDirect(currentModelId, currentChatMessages, env);
     } else {
       const response = await handleCloudflareModel(currentModelId, currentChatMessages, env);
-      
+
       // Handle union type: ReadableStream | { response, choices, usage, ... } | ...
       if (currentModelId.includes("gpt-oss")) {
         // GPT-OSS models return a complex object with output array
@@ -392,7 +392,7 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
           }
         }
       }
-      
+
       if (!content) {
         // Check for string response (simple models)
         if (typeof response === "string") {
@@ -422,20 +422,20 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
         content = content.trim() + signature;
       }
     }
-    
+
     return { response: content, model: currentModelKey };
   }
 
   // Основная логика с retry и fallback
   let lastError: Error;
   let usedModel = modelKey;
-  
+
   try {
     // Сначала пробуем основную модель с retry
     return await retryWithBackoff(() => executeWithModel(modelKey), 3, 1000);
   } catch (error: any) {
     lastError = error;
-    
+
     // Если основная модель не сработала, пробуем fallback-модели
     let fallbackModel = getFallbackModel(modelKey);
     while (fallbackModel) {
@@ -454,7 +454,7 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
         fallbackModel = getFallbackModel(fallbackModel);
       }
     }
-    
+
     // Если все модели не сработали
     throw new Error(`Все модели недоступны. Последняя ошибка: ${lastError.message}`);
   }
@@ -466,62 +466,62 @@ async function handleChatRequest(request: Request, env: Env) {
     if (env.RATE_LIMIT_KV) {
       const clientIP = getClientIP(request);
       const rateLimitResult = await checkRateLimit(env, clientIP);
-      
+
       if (!rateLimitResult.allowed) {
         const resetTime = rateLimitResult.resetTime || 0;
         const waitTime = Math.max(0, resetTime - Math.floor(Date.now() / 1000));
-        
-        return new Response(JSON.stringify({ 
+
+        return new Response(JSON.stringify({
           error: `Rate limit exceeded. Попробуйте через ${waitTime} секунд.`,
           retryable: true,
           retryAfter: waitTime,
           rateLimit: true
-        }), { 
+        }), {
           status: 429,
-          headers: { 
+          headers: {
             "content-type": "application/json",
             "Retry-After": waitTime.toString()
           }
         });
       }
     }
-    
+
     const requestData: any = await request.json();
-    
+
     // Валидация запроса
     const validation = validateRequest(requestData);
     if (!validation.valid) {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: validation.error,
         retryable: false,
         validation: true
-      }), { 
+      }), {
         status: 400,
         headers: { "content-type": "application/json" }
       });
     }
-    
+
     const result = await handleChatRequestLogic(requestData, env);
-    
+
     // Если был fallback, добавляем информацию в ответ
     if (result.fallback) {
       console.log(`Использована fallback-модель ${result.model} вместо ${result.originalModel}`);
     }
-    
-    return new Response(JSON.stringify(result), { 
-      headers: { 
+
+    return new Response(JSON.stringify(result), {
+      headers: {
         "content-type": "application/json",
         "X-Fallback-Used": result.fallback ? "true" : "false",
         "X-Model-Used": result.model
-      } 
+      }
     });
   } catch (error: any) {
     console.error("Ошибка в handleChatRequest:", error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message,
       retryable: true,
       timestamp: new Date().toISOString()
-    }), { 
+    }), {
       status: 500,
       headers: { "content-type": "application/json" }
     });
@@ -629,12 +629,12 @@ async function handleGoogleDirect(modelId: string, messages: any[], env: Env) {
     // Если API вернул ошибку (например, ключ или лимиты)
     if (data.error) {
       console.error("Ошибка Google API:", data.error.message);
-      
+
       // Обработка специфических ошибок Google
       if (data.error.message.includes("quota") || data.error.message.includes("rate limit")) {
         throw new Error("Google API quota exceeded. Try again later or use a different model.");
       }
-      
+
       return `Апостол Gemini столкнулся с преградой: ${data.error.message}`;
     }
 
@@ -655,27 +655,27 @@ async function handleGoogleDirect(modelId: string, messages: any[], env: Env) {
 
   } catch (error: any) {
     console.error("System Error:", error.message);
-    
+
     // Обработка специфических ошибок Google
     if (error.message.includes("quota") || error.message.includes("rate limit")) {
       throw new Error("Google API quota exceeded. Try again later or use a different model.");
     }
-    
+
     return `Искушение на пути (ошибка системы): ${error.message}`;
   }
 }
 
 async function handleOpenRouterDirect(modelId: string, messages: any[], env: Env) {
   const apiKey = env.OPENROUTER_API_KEY;
-  
+
   // Определение максимального количества токенов в зависимости от модели
   let maxTokens = 800; // По умолчанию для бесплатных моделей
-  
+
   // Для платных моделей можно использовать больше токенов
   if (!modelId.includes(":free")) {
     maxTokens = 2048;
   }
-  
+
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -688,23 +688,23 @@ async function handleOpenRouterDirect(modelId: string, messages: any[], env: Env
       max_tokens: maxTokens  // Используем адаптивное значение
     })
   });
-  
+
   const data: any = await res.json();
-  
+
   if (data.error) {
     const msg = data.error.message || data.error;
-    
+
     // Обработка специфических ошибок OpenRouter
     if (msg.includes("quota") || msg.includes("credit") || msg.includes("token")) {
       throw new Error("OpenRouter quota or credit limit exceeded. Check your account or use a different model.");
     }
-    
+
     if (msg.includes("endpoints")) {
       throw new Error("Model temporarily unavailable. Try a different model.");
     }
-    
+
     return `Ошибка OpenRouter: ${msg}`;
   }
-  
+
   return data.choices?.[0]?.message?.content || "Модель OpenRouter не вернула текстовый ответ.";
 }

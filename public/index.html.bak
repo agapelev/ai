@@ -26,28 +26,19 @@
   </head>
   <body>
     <header>
-      <!-- Орбитальная иконка Оракула (Цитадель Духа) -->
-      <div class="orbit-container" aria-hidden="true">
-        <div class="orbit-glow"></div>
-        <div class="orbit-line-1"></div>
-        <div class="orbit-line-2"></div>
-        <div class="orbit-center">🤖</div>
-      </div>
-      <h1><span class="word-1">Shekinah</span> <span class="word-2">Mission</span> <span class="word-3">AI Chat</span></h1>
-      <p>Powered by Web Arystan using Cloudflare Workers AI</p>
-      <div style="margin-top: 10px; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <label for="model-select" class="model-label">Модель:</label>
-        <select id="model-select" aria-label="Выбор модели"></select>
-        <span id="model-status" class="model-status" title="Статус модели" aria-hidden="true">●</span>
-        <button id="theme-toggle" aria-label="Переключить тему">🌙</button>
-        <button id="clear-history" class="clear-history-btn" aria-label="Очистить историю" title="Очистить историю чата">🗑️</button>
-        <button id="clear-models-cache" class="clear-cache-btn" aria-label="Очистить кэш моделей" title="Очистить кэш моделей и обновить список">🔄</button>
-        <div class="models-dropdown-container">
-          <a href="templates/inspiration" target="_blank" rel="noopener" class="models-link">О моделях ▼</a>
-          <div class="models-dropdown" id="models-dropdown">
-            <a href="templates/inspiration" target="_blank" rel="noopener" class="dropdown-item">📄 HTML версия</a>
-            <a href="templates/inspiration.md" target="_blank" rel="noopener" class="dropdown-item">📝 Markdown версия</a>
-          </div>
+      <h1>Shekinah Mission AI Chat</h1>
+      <p>Powered by Web Arystan Workers AI</p>
+      <label for="model-select" class="model-label">Модель:</label>
+      <select id="model-select" aria-label="Выбор модели"></select>
+      <span id="model-status" class="model-status" title="Статус модели" aria-hidden="true">●</span>
+      <button id="theme-toggle" aria-label="Переключить тему">🌙</button>
+      <button id="clear-history" class="clear-history-btn" aria-label="Очистить историю" title="Очистить историю чата">🗑️</button>
+      <button id="clear-models-cache" class="clear-cache-btn" aria-label="Очистить кэш моделей" title="Очистить кэш моделей и обновить список">🔄</button>
+      <div class="models-dropdown-container">
+        <a href="templates/inspiration" target="_blank" rel="noopener" class="models-link">О моделях ▼</a>
+        <div class="models-dropdown" id="models-dropdown">
+          <a href="templates/inspiration" target="_blank" rel="noopener" class="dropdown-item">📄 HTML версия</a>
+          <a href="templates/inspiration.md" target="_blank" rel="noopener" class="dropdown-item">📝 Markdown версия</a>
         </div>
       </div>
     </header>
@@ -104,7 +95,7 @@
     </div>
 
     <footer>
-      <p>Web Development Studio Arystan AI Chat &copy; 2025</p>
+      <p>Web Development Studio Web Arystan AI Chat Template &copy; 2025</p>
     </footer>
 
     <!-- Mobile Input Panel Toggle -->

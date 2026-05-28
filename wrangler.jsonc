@@ -17,9 +17,6 @@
       "preview_id": "rate_limit_kv_preview"
     }
   ],
-  "vars": {
-    "OLLAMA_ENDPOINT": "https://ollama.com"
-  },
   "observability": {
     "logs": {
       "enabled": false,
