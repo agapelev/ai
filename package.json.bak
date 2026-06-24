@@ -17,6 +17,7 @@
     "preview_image_url": "https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/153a71bf-d89c-4425-e510-0c7488f22500/public"
   },
   "dependencies": {
+    "@tabler/icons-react": "^3.24.0",
     "dayjs": "^1.11.13",
     "grammy": "^1.39.2",
     "newrelic": "^13.9.0"
@@ -29,6 +30,7 @@
     "@commitlint/config-conventional": "^17.0.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "24.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
     "@vitest/mocker": "^3.2.4",
     "autoprefixer": "^10.4.20",
     "husky": "^8.0.0",

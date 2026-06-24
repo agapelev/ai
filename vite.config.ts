@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+
 
 export default defineConfig({
   root: 'public',
@@ -8,7 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
     minify: 'esbuild',
   },
-  plugins: [react()],
+
   test: {
     globals: true,
     environment: 'miniflare',
