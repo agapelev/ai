@@ -120,11 +120,20 @@ const SUPPORTED_MODELS: Record<string, string> = {
   "Mistral-small-3.1-24b": "@cf/mistralai/mistral-small-3.1-24b-instruct",
   "IBM-Granite-4.0-h-micro": "@cf/ibm-granite/granite-4.0-h-micro",
 
-  // Google AI API
-  // "gemini-3-flash-preview": "gemini-3-flash-preview",
-  // "gemini-flash-latest": "gemini-flash-latest",
+  // Google AI API — Семейство Gemini
+  "gemini-3.5-flash": "gemini-3.5-flash",
+  "gemini-3-flash-preview": "gemini-3-flash-preview",
   "gemini-2.5-flash": "gemini-2.5-flash",
-  "gemini-2.0-flash-lite": "gemini-2.5-flash-lite",
+  "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
+  "gemini-2.0-flash": "gemini-2.0-flash",
+  "gemini-2.0-flash-lite": "gemini-2.0-flash-lite",
+  "gemini-flash-latest": "gemini-flash-latest",
+  "gemini-flash-lite-latest": "gemini-flash-lite-latest",
+  "gemini-pro-latest": "gemini-pro-latest",
+
+  // Google AI API — Семейство Gemma (Младшие собратья)
+  "gemma-4-31b-it": "gemma-4-31b-it",
+  "gemma-4-26b-a4b-it": "gemma-4-26b-a4b-it",
 
   // OpenRouter: Мудрецы & DeepSeek
   // "Qwen3-next-thinking": "qwen/qwen3-next-80b-a3b-thinking",
@@ -290,11 +299,13 @@ export default {
 
 // Список fallback-моделей в порядке надёжности
 const FALLBACK_MODELS = [
-  "Llama-3.3-70b",      // Самая стабильная Cloudflare модель
-  "Llama-3-8b",         // Лёгкая и быстрая
-  "GPT-OSS-20b",        // Надёжная альтернатива
-  "Qwen2.5-coder",      // Хорошая для кода
-  "gemini-2.5-flash"    // Google fallback
+  "gemini-3-flash-preview",   // Рабочая и стабильная модель нового поколения
+  "gemini-flash-lite-latest", // Быстрая и легкая альтернатива
+  "Llama-3.3-70b",            // Самая стабильная Cloudflare модель
+  "Llama-3-8b",               // Лёгкая и быстрая
+  "GPT-OSS-20b",              // Надёжная альтернатива
+  "Qwen2.5-coder",            // Хорошая для кода
+  "gemini-2.5-flash"          // Google fallback
 ];
 
 // Retry с экспоненциальным бэкофом
@@ -375,7 +386,7 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
     }
 
     let content = "";
-    if (currentModelKey.includes("gemini")) {
+    if (currentModelKey.includes("gemini") || currentModelKey.includes("gemma")) {
       content = await handleGoogleDirect(currentModelId, currentChatMessages, env);
     } else if (currentModelId.includes("/") && !currentModelId.startsWith("@")) {
       content = await handleOpenRouterDirect(currentModelId, currentChatMessages, env);
@@ -581,19 +592,19 @@ async function handleCloudflareModel(modelId: string, messages: any[], env: Env)
 }
 
 /**
- * handleGoogleDirect - Оживление Апостола Gemini.
- * Подключаем "Око Google" для доступа к знаниям в реальном времени.
+ * handleGoogleDirect - Оживление Легиона Апостолов Gemini.
+ * Реализует ротацию API-ключей: при исчерпании лимита (429)
+ * или перегрузке (503) автоматически переключается на следующий ключ.
  * Документация: https://ai.google.dev/gemini-api/docs/grounding
  */
 async function handleGoogleDirect(modelId: string, messages: any[], env: Env) {
-  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+  // Читаем все ключи: GEMINI_API_KEYS (через запятую), затем одиночные ключи
+  const keysString = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || "";
+  const apiKeys = keysString.split(",").map((k: string) => k.trim()).filter(Boolean);
 
-  if (!apiKey) {
-    throw new Error("Google API key not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in Cloudflare secrets.");
+  if (apiKeys.length === 0) {
+    throw new Error("Google API keys not configured. Set GEMINI_API_KEYS in Cloudflare secrets.");
   }
-
-  // Используем v1beta для поддержки новейших функций поиска
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
   const contents = messages.filter(m => m.role !== 'system').map(m => ({
     role: m.role === "assistant" ? "model" : "user",
@@ -601,68 +612,85 @@ async function handleGoogleDirect(modelId: string, messages: any[], env: Env) {
   }));
 
   const systemInstructionText = messages.find(m => m.role === 'system')?.content || "";
+  let lastErrMsg = "Неизвестная ошибка";
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: {
-          parts: [{ text: systemInstructionText }]
-        },
-        // АКТИВАЦИЯ ИНСТРУМЕНТА ПОИСКА
-        tools: [
-          {
-            google_search: {}
+  // Перебираем ключи по очереди — как Легион Апостолов, где один сменяет другого
+  for (let i = 0; i < apiKeys.length; i++) {
+    const apiKey = apiKeys[i];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: {
+            parts: [{ text: systemInstructionText }]
+          },
+          tools: [{ google_search: {} }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048
           }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048  // Уменьшено для соблюдения квот
-        }
-      })
-    });
+        })
+      });
 
-    const data: any = await res.json();
-
-    // Если API вернул ошибку (например, ключ или лимиты)
-    if (data.error) {
-      console.error("Ошибка Google API:", data.error.message);
-
-      // Обработка специфических ошибок Google
-      if (data.error.message.includes("quota") || data.error.message.includes("rate limit")) {
-        throw new Error("Google API quota exceeded. Try again later or use a different model.");
+      // При лимите (429) или перегрузке (503) — пробуем следующий ключ
+      if (res.status === 429 || res.status === 503) {
+        const errText = await res.text();
+        let errJson: any;
+        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
+        lastErrMsg = errJson?.error?.message || errText || res.statusText;
+        console.warn(`Ключ №${i + 1} вернул HTTP ${res.status}. Переключаюсь на следующий...`);
+        continue;
       }
 
-      return `Апостол Gemini столкнулся с преградой: ${data.error.message}`;
+      // Прочие HTTP-ошибки — возвращаем сразу без перебора
+      if (!res.ok) {
+        const errText = await res.text();
+        let errJson: any;
+        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
+        const errMsg = errJson?.error?.message || errText || res.statusText;
+        return `Апостол Gemini столкнулся с преградой (HTTP ${res.status}): ${errMsg}`;
+      }
+
+      const data: any = await res.json();
+
+      // Ошибка квоты внутри 200-ответа — пробуем следующий ключ
+      if (data.error) {
+        const errMsg = data.error.message || "";
+        if (errMsg.includes("quota") || errMsg.includes("rate limit") || errMsg.includes("demand")) {
+          console.warn(`Ключ №${i + 1} вернул ошибку квоты. Переключаюсь...`);
+          lastErrMsg = errMsg;
+          continue;
+        }
+        return `Апостол Gemini столкнулся с преградой: ${errMsg}`;
+      }
+
+      // Успешный ответ — собираем текст из кандидатов
+      const candidate = data.candidates?.[0];
+      const textPart = candidate?.content?.parts?.find((p: any) => p.text);
+
+      if (textPart && textPart.text) {
+        return textPart.text;
+      }
+
+      if (candidate?.groundingMetadata) {
+        return "Апостол изучил данные Google, но не смог облечь истину в слова. Попробуйте уточнить вопрос.";
+      }
+
+      return "Апостол Gemini ищет истину в глубоких водах... (ответ пуст).";
+
+    } catch (error: any) {
+      console.error(`Ошибка сети при запросе с ключом №${i + 1}:`, error.message);
+      lastErrMsg = error.message;
+      continue; // Пробуем следующий ключ при сетевой ошибке
     }
-
-    // Тщательный сбор урожая: ищем текст в кандидатах
-    const candidate = data.candidates?.[0];
-    const textPart = candidate?.content?.parts?.find((p: any) => p.text);
-
-    if (textPart && textPart.text) {
-      return textPart.text;
-    }
-
-    // Если текста нет, но есть данные поиска (бывает при сложных запросах)
-    if (candidate?.groundingMetadata) {
-      return "Апостол изучил данные Google, но не смог облечь истину в слова. Попробуйте уточнить вопрос.";
-    }
-
-    return "Апостол Gemini ищет истину в глубоких водах... (ответ пуст).";
-
-  } catch (error: any) {
-    console.error("System Error:", error.message);
-
-    // Обработка специфических ошибок Google
-    if (error.message.includes("quota") || error.message.includes("rate limit")) {
-      throw new Error("Google API quota exceeded. Try again later or use a different model.");
-    }
-
-    return `Искушение на пути (ошибка системы): ${error.message}`;
   }
+
+  // Все ключи перебраны — никто не смог помочь
+  throw new Error(`Все API-ключи Google исчерпали лимиты или недоступны. Последняя ошибка: ${lastErrMsg}`);
 }
 
 async function handleOpenRouterDirect(modelId: string, messages: any[], env: Env) {

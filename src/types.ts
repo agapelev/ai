@@ -9,6 +9,7 @@ export interface Env {
   RATE_LIMIT_KV: KVNamespace;
 
   // API ключи
+  GEMINI_API_KEYS: string;  // Несколько ключей через запятую (ротация)
   GEMINI_API_KEY: string;
   GOOGLE_API_KEY: string;
   OPENROUTER_API_KEY: string;
