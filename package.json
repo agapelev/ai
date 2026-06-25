@@ -38,6 +38,7 @@
     "typescript": "5.8.3",
     "vite": "^6.1.0",
     "vitest": "^3.0.0",
+    "vitest-environment-miniflare": "^2.14.4",
     "wrangler": "4.21.x"
   },
   "type": "module",
