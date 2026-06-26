@@ -13,6 +13,8 @@ export interface Env {
   GEMINI_API_KEY: string;
   GOOGLE_API_KEY: string;
   OPENROUTER_API_KEY: string;
+  MISTRAL_API_KEYS: string; // Несколько ключей через запятую (ротация)
+  MISTRAL_API_KEY: string;
 
   // Telegram
   TELEGRAM_TOKEN: string;

@@ -141,6 +141,12 @@ const SUPPORTED_MODELS: Record<string, string> = {
   // "Qwen3-next-instruct": "qwen/qwen3-next-80b-a3b-instruct",
   // "DeepSeek-r1-qwen3": "deepseek/deepseek-r1-0528-qwen3-8b",
 
+  // Mistral AI Models (Direct API)
+  "mistral-tiny": "mistral-tiny-latest",
+  "mistral-small": "mistral-small-latest",
+  "mistral-medium": "mistral-medium-latest",
+  "mistral-large": "mistral-large-latest",
+
   // OpenRouter Free Options
   // "Codellama-code": "meta-llama/llama-3.3-70b-instruct:free",
   // "Xiaomi-mimo-v2-flash": "xiaomi/mimo-v2-flash:free",
@@ -389,6 +395,8 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
     let content = "";
     if (currentModelKey.includes("gemini") || currentModelKey.includes("gemma")) {
       content = await handleGoogleDirect(currentModelId, currentChatMessages, env);
+    } else if (currentModelKey.includes("mistral")) {
+      content = await handleMistralDirect(currentModelId, currentChatMessages, env);
     } else if (currentModelId.includes("/") && !currentModelId.startsWith("@")) {
       content = await handleOpenRouterDirect(currentModelId, currentChatMessages, env);
     } else {
@@ -736,4 +744,99 @@ async function handleOpenRouterDirect(modelId: string, messages: any[], env: Env
   }
 
   return data.choices?.[0]?.message?.content || "Модель OpenRouter не вернула текстовый ответ.";
+}
+
+// =========================================================================
+// MISTRAL AI HANDLER
+// =========================================================================
+
+async function handleMistralDirect(modelId: string, messages: any[], env: Env) {
+  // Читаем все ключи: MISTRAL_API_KEYS (через запятую), затем одиночный ключ
+  const keysString = env.MISTRAL_API_KEYS || env.MISTRAL_API_KEY || "";
+  const apiKeys = keysString.split(",").map((k: string) => k.trim()).filter(Boolean);
+
+  if (apiKeys.length === 0) {
+    throw new Error("Mistral API keys not configured. Set MISTRAL_API_KEYS in Cloudflare secrets.");
+  }
+
+  // Определение максимального количества токенов в зависимости от модели
+  let maxTokens = 1024; // По умолчанию
+  
+  // Адаптивное определение max_tokens для разных моделей Mistral
+  if (modelId.includes("tiny")) {
+    maxTokens = 800;
+  } else if (modelId.includes("small")) {
+    maxTokens = 1500;
+  } else if (modelId.includes("medium")) {
+    maxTokens = 2048;
+  } else if (modelId.includes("large")) {
+    maxTokens = 4096;
+  }
+
+  let lastErrMsg = "Неизвестная ошибка";
+
+  // Перебираем ключи по очереди
+  for (let i = 0; i < apiKeys.length; i++) {
+    const apiKey = apiKeys[i];
+
+    try {
+      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+          top_p: 1.0
+        })
+      });
+
+      // При лимите (429) или перегрузке (503) — пробуем следующий ключ
+      if (res.status === 429 || res.status === 503) {
+        const errText = await res.text();
+        let errJson: any;
+        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
+        lastErrMsg = errJson?.error?.message || errText || res.statusText;
+        console.warn(`Mistral ключ №${i + 1} вернул HTTP ${res.status}. Переключаюсь на следующий...`);
+        continue;
+      }
+
+      // Прочие HTTP-ошибки — возвращаем сразу без перебора
+      if (!res.ok) {
+        const errText = await res.text();
+        let errJson: any;
+        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
+        const errMsg = errJson?.error?.message || errText || res.statusText;
+        return `Апостол Mistral столкнулся с преградой (HTTP ${res.status}): ${errMsg}`;
+      }
+
+      const data: any = await res.json();
+
+      // Ошибка квоты внутри 200-ответа — пробуем следующий ключ
+      if (data.error) {
+        const errMsg = data.error.message || "";
+        if (errMsg.includes("quota") || errMsg.includes("rate limit") || errMsg.includes("demand")) {
+          console.warn(`Mistral ключ №${i + 1} вернул ошибку квоты. Переключаюсь...`);
+          lastErrMsg = errMsg;
+          continue;
+        }
+        return `Апостол Mistral столкнулся с преградой: ${errMsg}`;
+      }
+
+      // Успешный ответ
+      return data.choices?.[0]?.message?.content || "Модель Mistral не вернула текстовый ответ.";
+
+    } catch (error: any) {
+      console.error(`Ошибка сети при запросе с Mistral ключом №${i + 1}:`, error.message);
+      lastErrMsg = error.message;
+      continue; // Пробуем следующий ключ при сетевой ошибке
+    }
+  }
+
+  // Все ключи перебраны — никто не смог помочь
+  throw new Error(`Все API-ключи Mistral исчерпали лимиты или недоступны. Последняя ошибка: ${lastErrMsg}`);
 }
