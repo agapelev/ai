@@ -10,16 +10,9 @@
     <link rel="icon" type="image/svg+xml" sizes="16x16" href="favicon-16x16.svg" />
     <link rel="apple-touch-icon" href="favicon.svg" />
     
-    <!-- Apply user's previously chosen theme (quickly, to avoid FOUC) -->
+    <!-- Always use dark theme -->
     <script>
-      (function () {
-        try {
-          const t = localStorage.getItem('theme');
-          document.documentElement.setAttribute('data-theme', t ? t : 'dark');
-        } catch (e) {
-          /* failing silently keeps default dark */
-        }
-      })();
+      document.documentElement.setAttribute('data-theme', 'dark');
     </script>
 
     <link rel="stylesheet" href="styles.css" />
@@ -39,7 +32,7 @@
         <label for="model-select" class="model-label">Модель:</label>
         <select id="model-select" aria-label="Выбор модели"></select>
         <span id="model-status" class="model-status" title="Статус модели" aria-hidden="true">●</span>
-        <button id="theme-toggle" aria-label="Переключить тему">🌙</button>
+
         <button id="clear-history" class="clear-history-btn" aria-label="Очистить историю" title="Очистить историю чата">🗑️</button>
         <button id="clear-models-cache" class="clear-cache-btn" aria-label="Очистить кэш моделей" title="Очистить кэш моделей и обновить список">🔄</button>
         <div class="models-dropdown-container">
@@ -113,7 +106,6 @@
     <!-- Markdown renderer + sanitizer -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js" defer></script>
-    <script type="module" src="theme.js" defer></script>
     <script type="module" src="chat.js" defer></script>
   </body>
 </html>

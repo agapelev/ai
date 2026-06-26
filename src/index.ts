@@ -104,6 +104,7 @@ function validateRequest(requestData: any): { valid: boolean; error?: string } {
 const SUPPORTED_MODELS: Record<string, string> = {
   // Cloudflare Workers AI
   "Llama-3.3-70b": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "Gemini-3.5-flash": "@cf/google/gemini-3.5-flash",
   "Llama-3-8b": "@cf/meta/llama-3-8b-instruct",
   "Llama-4-Scout-8b": "@cf/meta/llama-4-scout-17b-16e-instruct",
   "Llama-4-Scout": "@cf/meta/llama-4-scout-17b-16e-instruct",

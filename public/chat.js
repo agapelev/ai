@@ -293,7 +293,7 @@ function setupFallbackModels() {
     modelSelect.appendChild(opt2);
     
     modelSelect.value = "llama-3.3-70b";
-    updateModelStatus(true);
+    updateModelStatus(false); // Показываем, что модели загружены из fallback
   }
 }
 
@@ -302,11 +302,14 @@ function updateModelStatus(isAvailable) {
   
   if (isAvailable) {
     modelStatus.className = "model-status available";
-    modelStatus.title = "Модель доступна";
+    modelStatus.title = "✅ Модель доступна и готова к использованию";
   } else {
     modelStatus.className = "model-status unavailable";
-    modelStatus.title = "Модель недоступна";
+    modelStatus.title = "❌ Модель временно недоступна";
   }
+  
+  // Force reflow to ensure styles are applied immediately
+  void modelStatus.offsetWidth;
 }
 
 // Local chat history helpers
@@ -454,6 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Setup models dropdown
   setupModelsDropdown();
+  
+
 });
 
 // Render chat history with virtual scrolling optimization
