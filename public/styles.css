@@ -931,3 +931,62 @@ footer {
   font-size: 1rem;
   filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.4));
 }
+
+/* Анимированные надписи для Claude AI и Журналов */
+.animated-text-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  position: relative;
+}
+
+/* Анимация каждой буквы отдельно */
+.animated-text-link .letter {
+  color: var(--text-secondary);
+  transition: color 0.3s ease;
+}
+
+.animated-text-link:hover .letter {
+  color: var(--accent-secondary);
+}
+
+/* Разделитель между надписями */
+.text-separator {
+  margin: 0 6px;
+  color: var(--text-secondary);
+  font-weight: 300;
+}
+
+/* Анимация подчеркивания */
+.animated-text-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--accent-secondary);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+
+.animated-text-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Дополнительная анимация для эмодзи */
+.animated-text-link:hover::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-secondary), transparent);
+  opacity: 0.7;
+}

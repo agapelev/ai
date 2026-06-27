@@ -3,9 +3,6 @@
 // @ts-ignore
 import { Env } from "./types";
 
-// Импортируем Anthropic SDK (будет доступен в Cloudflare Workers)
-declare const Anthropic: any;
-
 const TELEGRAM_API_URL = "https://api.telegram.org/bot";
 
 // --- RATE LIMITING И ЗАЩИТА ---
@@ -157,12 +154,10 @@ const SUPPORTED_MODELS: Record<string, string> = {
   // с ним всегда падали бы на fallback. Перед деплоем сверь актуальный
   // список через check-claude-models.mjs (GET /v1/models с твоим ключом) —
   // это единственный надёжный источник правды, а не код или память модели.
-  "claude-opus-4-7": "claude-opus-4-7",              // Актуальный флагман
-  "claude-sonnet-4-6": "claude-sonnet-4-6",          // Стабильная 4.6
-  "claude-haiku-4-5": "claude-haiku-4-5-20251001",   // Точный ID с датой
-  "claude-sonnet-4-5": "claude-sonnet-4-5-20250929",   // Точный ID с датой
+  "claude-sonnet-4-6": "claude-sonnet-4-6",
+  "claude-opus-4-7": "claude-opus-4-7",
+  "claude-haiku-4-5": "claude-haiku-4-5-20251001",
   "claude-3-5-sonnet": "claude-3-5-sonnet-20240620",  // Легаси поддержка
-  // "claude-fable-5": "claude-fable-5"                // Временно недоступна (2026-06)
 
   // OpenRouter Free Options
   // "Codellama-code": "meta-llama/llama-3.3-70b-instruct:free",
@@ -324,9 +319,9 @@ export default {
 // Список fallback-моделей в порядке надёжности
 const FALLBACK_MODELS = [
   "gemini-3-flash-preview",   // Рабочая и стабильная модель нового поколения
-  "claude-opus-4-7",          // Актуальный флагман Anthropic
-  "claude-sonnet-4-6",        // Стабильная модель 4.6
-  "claude-haiku-4-5",         // Быстрая модель
+  "claude-sonnet-4-6",        // Современная модель Claude
+  "claude-opus-4-7",          // Флагманская модель Anthropic
+  "claude-3-5-sonnet",        // Легаси поддержка
   "Llama-3.3-70b",            // Самая стабильная Cloudflare модель
   "gemini-2.5-flash"          // Google fallback
 ];
@@ -409,22 +404,15 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
     }
 
     let content = "";
-    console.log(`[Routing] Модель: ${currentModelKey} → ${currentModelId}`);
-    
     if (currentModelKey.includes("gemini") || currentModelKey.includes("gemma")) {
-      console.log(`[Routing] Используем handleGoogleDirect`);
       content = await handleGoogleDirect(currentModelId, currentChatMessages, env);
     } else if (currentModelKey.includes("mistral")) {
-      console.log(`[Routing] Используем handleMistralDirect`);
       content = await handleMistralDirect(currentModelId, currentChatMessages, env);
     } else if (currentModelKey.includes("claude")) {
-      console.log(`[Routing] Используем handleAnthropicDirect`);
       content = await handleAnthropicDirect(currentModelId, currentChatMessages, env);
     } else if (currentModelId.includes("/") && !currentModelId.startsWith("@")) {
-      console.log(`[Routing] Используем handleOpenRouterDirect`);
       content = await handleOpenRouterDirect(currentModelId, currentChatMessages, env);
     } else {
-      console.log(`[Routing] Используем handleCloudflareModel`);
       const response = await handleCloudflareModel(currentModelId, currentChatMessages, env);
 
       // Handle union type: ReadableStream | { response, choices, usage, ... } | ...
@@ -870,95 +858,100 @@ async function handleMistralDirect(modelId: string, messages: any[], env: Env) {
 // ANTHROPIC AI HANDLER
 // =========================================================================
 
-// =========================================================================
-// ANTHROPIC AI HANDLER (обновлён согласно рабочему примеру)
-// =========================================================================
-
 async function handleAnthropicDirect(modelId: string, messages: any[], env: Env) {
   // Читаем все ключи: ANTHROPIC_API_KEYS (через запятую), затем одиночный ключ
   const keysString = env.ANTHROPIC_API_KEYS || env.ANTHROPIC_API_KEY || "";
   const apiKeys = keysString.split(",").map((k: string) => k.trim()).filter(Boolean);
 
-  console.log(`[Anthropic] Загружено ${apiKeys.length} ключей для модели ${modelId}`);
-
   if (apiKeys.length === 0) {
-    console.error("[Anthropic] Нет настроенных ключей!");
     throw new Error("Anthropic API keys not configured. Set ANTHROPIC_API_KEYS in Cloudflare secrets.");
   }
 
-  // Форматируем сообщения для Anthropic API
-  const formattedMessages = messages.map(msg => ({
-    role: msg.role === 'assistant' ? 'assistant' : 'user',
-    content: msg.content
-  }));
+  // Определение максимального количества токенов в зависимости от модели.
+  // Старая проверка modelId.includes("claude-4") никогда не срабатывала —
+  // реальные id выглядят как "claude-sonnet-4-6", а не "claude-4-...".
+  const isV4Family = /claude-(opus|sonnet|haiku)-4-/.test(modelId);
+  let maxTokens = isV4Family ? 8192 : 4096; // Claude 4.x поддерживает до 8K токенов на выходе
 
-  // Системный промпт
-  const systemPrompt = messages.find(m => m.role === 'system')?.content || 
-    "Ты - Апостол Claude, мудрый помощник Льва Николаевича. Отвечай на русском языке.";
+  let lastErrMsg = "Неизвестная ошибка";
 
-  // Пробуем все ключи по очереди
-  let lastError: any = null;
-  
+  // Перебираем ключи по очереди
   for (let i = 0; i < apiKeys.length; i++) {
     const apiKey = apiKeys[i];
-    
+
     try {
+      // anthropic-version — версия контракта API, не версия модели.
+      // 2023-06-01 — текущая стабильная версия, актуальна и для Claude 4.x.
+      // Документация: https://docs.claude.com/en/api/versioning
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
+          // Anthropic API авторизуется ИСКЛЮЧИТЕЛЬНО через x-api-key.
+          // "Authorization: Bearer" здесь не нужен и не поддерживается —
+          // в прежней версии он отправлялся без всякого смысла.
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: modelId,
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: formattedMessages,
+          messages: messages,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+          top_p: 1.0,
+          system: messages.find(m => m.role === 'system')?.content || undefined,
         })
       });
 
-      // Успешный ответ
-      if (res.ok) {
-        const data: any = await res.json();
-        
-        if (data.content && data.content[0]?.text) {
-          console.log(`[Anthropic] Успех с ключом №${i + 1}`);
-          return data.content[0].text;
-        }
-        
-        return "Модель Claude не вернула текстовый ответ.";
-      }
-
-      // Обработка ошибок
-      const errorText = await res.text();
-      let errorJson;
-      try {
-        errorJson = JSON.parse(errorText);
-      } catch (e) {
-        errorJson = null;
-      }
-
-      const errorMsg = errorJson?.error?.message || res.statusText;
-      
-      // При лимите или перегрузке - пробуем следующий ключ
+      // При лимите (429) или перегрузке (503) — пробуем следующий ключ
       if (res.status === 429 || res.status === 503) {
-        console.warn(`[Anthropic] Ключ №${i + 1}: ${res.status} - ${errorMsg}`);
-        lastError = new Error(errorMsg);
+        const errText = await res.text();
+        let errJson: any;
+        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
+        lastErrMsg = errJson?.error?.message || errText || res.statusText;
+        console.warn(`Anthropic ключ №${i + 1} вернул HTTP ${res.status}. Переключаюсь на следующий...`);
         continue;
       }
 
-      // Прочие ошибки - возвращаем сразу
-      console.error(`[Anthropic] Ключ №${i + 1} вернул ошибку ${res.status}: ${errorMsg}`);
-      return `Апостол Claude столкнулся с преградой (HTTP ${res.status}): ${errorMsg}`;
+      // Прочие HTTP-ошибки — возвращаем сразу без перебора
+      if (!res.ok) {
+        const errText = await res.text();
+        let errJson: any;
+        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
+        const errMsg = errJson?.error?.message || errText || res.statusText;
+        return `Апостол Claude столкнулся с преградой (HTTP ${res.status}): ${errMsg}`;
+      }
+
+      const data: any = await res.json();
+
+      // Ошибка квоты внутри 200-ответа — пробуем следующий ключ
+      if (data.error) {
+        const errMsg = data.error.message || "";
+        if (errMsg.includes("quota") || errMsg.includes("rate limit") || errMsg.includes("demand")) {
+          console.warn(`Anthropic ключ №${i + 1} вернул ошибку квоты. Переключаюсь...`);
+          lastErrMsg = errMsg;
+          continue;
+        }
+        return `Апостол Claude столкнулся с преградой: ${errMsg}`;
+      }
+
+      // Успешный ответ (новый формат для Claude 4.x)
+      if (data.content && data.content.length > 0) {
+        if (data.content[0].text) {
+          return data.content[0].text;
+        } else if (data.content[0].input) {
+          return data.content[0].input;
+        }
+      }
+      return "Модель Claude не вернула текстовый ответ.";
 
     } catch (error: any) {
-      console.error(`[Anthropic] Сетевая ошибка с ключом №${i + 1}: ${error.message}`);
-      lastError = error;
-      continue;
+      console.error(`Ошибка сети при запросе с Anthropic ключом №${i + 1}:`, error.message);
+      lastErrMsg = error.message;
+      continue; // Пробуем следующий ключ при сетевой ошибке
     }
   }
 
-  // Все ключи перебраны
-  throw new Error(`Все API-ключи Anthropic исчерпали лимиты. Последняя ошибка: ${lastError?.message || 'неизвестно'}`);
+  // Все ключи перебраны — никто не смог помочь
+  throw new Error(`Все API-ключи Anthropic исчерпали лимиты или недоступны. Последняя ошибка: ${lastErrMsg}`);
 }

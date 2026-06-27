@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тест анимации по буквам</title>
+  <style>
+    :root {
+      --bg-primary: #020617;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-secondary: #8b5cf6;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    h1 {
+      color: var(--accent-secondary);
+      margin-bottom: 30px;
+    }
+
+    /* Пример заголовка как в чате */
+    .title-example {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+
+    .word-1 {
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+    }
+
+    .word-1:hover {
+      color: var(--accent-secondary);
+    }
+
+    /* Анимированные надписи для Claude AI и Журналов */
+    .animated-text-link {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      position: relative;
+    }
+
+    /* Анимация каждой буквы отдельно */
+    .animated-text-link .letter {
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+    }
+
+    .animated-text-link:hover .letter {
+      color: var(--accent-secondary);
+    }
+
+    /* Разделитель между надписями */
+    .text-separator {
+      margin: 0 6px;
+      color: var(--text-secondary);
+      font-weight: 300;
+    }
+
+    /* Анимация подчеркивания */
+    .animated-text-link::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--accent-secondary);
+      transform: scaleX(0);
+      transform-origin: right;
+      transition: transform 0.3s ease;
+    }
+
+    .animated-text-link:hover::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+
+    /* Дополнительная анимация для эмодзи */
+    .animated-text-link:hover::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-secondary), transparent);
+      opacity: 0.7;
+    }
+
+    .links-container {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Тест анимации по буквам</h1>
+
+  <div class="title-example">
+    <span class="word-1">Shekinah</span> Mission AI Chat
+  </div>
+
+  <p style="color: var(--text-secondary); margin-bottom: 20px;">Сравните анимацию:</p>
+
+  <div class="links-container">
+    <a href="https://ai-shekinah.netlify.app/" target="_blank" rel="noopener" class="animated-text-link claude-link">
+      🤖 <span class="letter">C</span><span class="letter">l</span><span class="letter">a</span><span class="letter">u</span><span class="letter">d</span><span class="letter">e</span> <span class="letter">A</span><span class="letter">I</span>
+    </a>
+    <span class="text-separator">|</span>
+    <a href="https://journal-webarystan.vercel.app/" target="_blank" rel="noopener" class="animated-text-link journal-link">
+      📖 <span class="letter">Ж</span><span class="letter">у</span><span class="letter">р</span><span class="letter">н</span><span class="letter">а</span><span class="letter">л</span><span class="letter">ы</span>
+    </a>
+  </div>
+
+  <p style="margin-top: 30px; color: var(--text-secondary);">Наведите курсор на надписи</p>
+  <p style="color: var(--text-secondary);">Теперь каждая буква меняет цвет отдельно!</p>
+</body>
+</html>

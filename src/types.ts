@@ -15,6 +15,8 @@ export interface Env {
   OPENROUTER_API_KEY: string;
   MISTRAL_API_KEYS: string; // Несколько ключей через запятую (ротация)
   MISTRAL_API_KEY: string;
+  ANTHROPIC_API_KEYS: string; // Несколько ключей через запятую (ротация)
+  ANTHROPIC_API_KEY: string;
 
   // Telegram
   TELEGRAM_TOKEN: string;

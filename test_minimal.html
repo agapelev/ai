@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --text-secondary: #94a3b8;
+      --accent-secondary: #8b5cf6;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: white;
+      padding: 20px;
+    }
+    
+    .animated-text-link {
+      display: inline-flex;
+      align-items: center;
+      font-size: 1rem;
+      text-decoration: none;
+      position: relative;
+    }
+    
+    .animated-text-link .letter {
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+    }
+    
+    .animated-text-link:hover .letter {
+      color: var(--accent-secondary);
+    }
+    
+    .text-separator {
+      margin: 0 6px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <h2>Минимальный тест анимации</h2>
+  
+  <div style="margin: 20px 0;">
+    <a href="#" class="animated-text-link">
+      🤖 <span class="letter">C</span><span class="letter">l</span><span class="letter">a</span><span class="letter">u</span><span class="letter">d</span><span class="letter">e</span> <span class="letter">A</span><span class="letter">I</span>
+    </a>
+    <span class="text-separator">|</span>
+    <a href="#" class="animated-text-link">
+      📖 <span class="letter">Ж</span><span class="letter">у</span><span class="letter">р</span><span class="letter">н</span><span class="letter">а</span><span class="letter">л</span><span class="letter">ы</span>
+    </a>
+  </div>
+  
+  <p>Наведите курсор на надписи</p>
+  <p>Каждая буква должна отдельно менять цвет с серого на фиолетовый</p>
+</body>
+</html>
