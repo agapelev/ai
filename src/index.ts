@@ -941,16 +941,11 @@ async function handleAnthropicDirect(modelId: string, messages: any[], env: Env)
 
       const errorMsg = errorJson?.error?.message || res.statusText;
       
-      // При лимите или перегрузке - пробуем следующий ключ
-      if (res.status === 429 || res.status === 503) {
-        console.warn(`[Anthropic] Ключ №${i + 1}: ${res.status} - ${errorMsg}`);
-        lastError = new Error(errorMsg);
-        continue;
-      }
-
-      // Прочие ошибки - возвращаем сразу
-      console.error(`[Anthropic] Ключ №${i + 1} вернул ошибку ${res.status}: ${errorMsg}`);
-      return `Апостол Claude столкнулся с преградой (HTTP ${res.status}): ${errorMsg}`;
+      // При любых ошибках (включая лимиты, нехватку баланса 400 или невалидный ключ 401) -
+      // логируем предупреждение, сохраняем ошибку и переходим к следующему ключу в обойме.
+      console.warn(`[Anthropic] Ключ №${i + 1} вернул ошибку HTTP ${res.status}: ${errorMsg}`);
+      lastError = new Error(`HTTP ${res.status}: ${errorMsg}`);
+      continue;
 
     } catch (error: any) {
       console.error(`[Anthropic] Сетевая ошибка с ключом №${i + 1}: ${error.message}`);
