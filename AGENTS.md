@@ -371,24 +371,62 @@ npm run lint:commits    # Conventional commit check
 
 ---
 
+## ⏸ ТОЧКА ОСТАНОВА — 12.10.2026 (коммит `ff839b1`)
+
+**Сессия завершена. Следующему агенту — читать этот раздел первым.**
+
+### Что было сделано в сессии 12.10.2026 (OpenCode / Claude Sonnet 4.6):
+- Полный экспертный аудит проекта (25 проблем задокументировано)
+- OpenRouter удалён полностью из всех рабочих файлов
+- Исправлен критический баг роутинга (`includes()` → `toLowerCase().includes()`)
+- Добавлены все бесплатные модели Cloudflare Workers AI (23 модели по живому API)
+- Anthropic: все 14 актуальных моделей из живого API (`claude-sonnet-5-5` ... `claude-3-5-sonnet`)
+- Mistral: все chat-модели из живого API (`codestral`, `ministral`, `magistral`, `mistral-*`)
+- Ротация ключей для всех провайдеров: обработка `401/429/503` → переход к следующему ключу
+- Секреты выставлены через `wrangler secret put` (сохраняются навсегда):
+  - `ANTHROPIC_API_KEYS` — 4 ключа
+  - `GEMINI_API_KEYS` — 3 ключа
+  - `MISTRAL_API_KEYS` — 4 ключа
+- Деплой: коммит `ff839b1` → `https://ai.dessyatykh.workers.dev` (31.94 KiB, версия `70198394`)
+
+### Важно для следующей сессии:
+- **GitHub Actions не работает** для аккаунта `dessyatykh@gmail.com` — деплоить напрямую:
+  ```bash
+  CLOUDFLARE_API_TOKEN=<CLOUDFLARE_API_TOKEN> npx wrangler deploy
+  ```
+- **Пуш на GitHub** — через токен (нет `workflow` scope, поэтому `.github/workflows/` не трогать):
+  ```bash
+  git push https://agapelev:<TOKEN>@github.com/agapelev/ai.git main
+  ```
+- **Секреты** выставлены через CLI — не трогать, они сохранены в Cloudflare
+
+---
+
 ## 📊 Данные о проекте
 
 | Параметр | Значение |
 |----------|----------|
 | **Production URL** | https://ai.dessyatykh.workers.dev |
-| **Upload size** | 27.25 KiB (7.02 KiB gzipped) |
-| **Worker bindings** | `AI`, `ASSETS`, `RATE_LIMIT_KV`, `OLLAMA_ENDPOINT` |
-| **AI models** | 23 Cloudflare (бесплатные) + 11 Google + 4 Mistral + 4 Claude |
+| **Upload size** | 31.94 KiB (7.36 KiB gzipped) |
+| **Worker bindings** | `AI`, `ASSETS`, `RATE_LIMIT_KV` |
+| **Cloudflare Workers AI** | 23 бесплатные модели |
+| **Google Gemini** | 11 моделей (ротация 3 ключей) |
+| **Mistral AI** | 13 chat-моделей (ротация 4 ключей) |
+| **Anthropic Claude** | 14 моделей (ротация 4 ключей) |
+| **Итого моделей** | 61 |
 | **Rate limit** | 10 requests/minute per IP |
-| **Max history** | 50 messages per chat |
-| **Max message length** | 10000 characters |
+| **Max history** | 50 messages per chat (15 в контексте) |
+| **Max message length** | 10 000 символов |
+| **Последний коммит** | `ff839b1` от 12.10.2026 |
+| **Последняя версия CF** | `70198394-a98c-4861-b2c7-56eae845e185` |
 
 ---
 
 ## 📝 Заметки для разработчика
 
-- **Архивные файлы:** Все `src/index-*.ts` — экспериментальные версии, не использовать
+- **Архивные файлы:** Все `src/index-*.ts.bak` — экспериментальные версии, не использовать
 - **Main code:** `src/index.ts` + `public/chat.js` — единственный рабочий код
-- **API endpoints:** `/api/chat`, `/api/models`, `/api/health`, `/bot-update`
-- **Static:** Все файлы в `public/` отдапаются как static assets через `ASSETS` binding
-- **TypeScript:** Всегда запускать `npm run check` перед push в `main`
+- **API endpoints:** `/api/chat`, `/api/models`, `/bot-update`, `/setup`
+- **Static:** Все файлы в `public/` отдаются как static assets через `ASSETS` binding
+- **TypeScript:** Всегда запускать `npm run check` перед деплоем
+- **Роутинг провайдеров** в `executeWithModel` — строго через `keyLower.includes(...)`, не `key.includes(...)`
