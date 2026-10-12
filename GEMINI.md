@@ -43,10 +43,11 @@
 
 ---
 
-## 🎯 Поддерживаемые AI модели (14+ моделей)
-* **Cloudflare Workers AI:** Llama-3.3-70b (по умолчанию), Llama-3-8b, Qwen3-30b, DeepSeek-r1-distill-qwen, Mistral-small, IBM-Granite и др.
-* **Google AI API:** gemini-3-flash-preview, gemini-flash-latest, gemini-2.5-flash.
-* **OpenRouter:** Qwen3-next-thinking, DeepSeek-r1-qwen3, Codellama-code и др.
+## 🎯 Поддерживаемые AI модели (42 модели)
+* **Cloudflare Workers AI (23 бесплатные):** Llama-3.3-70b (по умолчанию), Llama-4-Scout, Nemotron-3-120b, GPT-OSS-120b, GPT-OSS-20b, Qwen3.8-27b, DeepSeek-R1-Distill-32b, Mistral-Small-3.1-24b, IBM-Granite-4.0-micro, GLM-4.7-Flash, Apertus-1.5-8b, Gemma-4-26b и др.
+* **Google AI API:** gemini-3-flash-preview, gemini-flash-latest, gemini-2.5-flash и др.
+* **Anthropic Claude:** claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5.
+* **Mistral AI:** mistral-tiny, mistral-small, mistral-medium, mistral-large.
 
 ---
 *«Всё мне позволительно, но не всё полезно; всё мне позволительно, но ничто не должно обладать мною.» (1 Кор. 6:12)*

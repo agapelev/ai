@@ -9,8 +9,8 @@
 
 ## Stack
 - Cloudflare Workers (TypeScript)
-- Telegram Bot API (grammy)
-- AI Providers: Cloudflare Workers AI, Google Gemini API, OpenRouter
+- Telegram Bot API
+- AI Providers: Cloudflare Workers AI, Google Gemini API, Anthropic Claude, Mistral AI
 - Frontend: Vanilla JS + TailwindCSS (Vite для бандлинга). Полный отказ от React + Mantine ради сохранения легкого, надежного одностраничного экспресс-чата.
 
 ---
@@ -205,36 +205,56 @@ npm run dev
 
 ## 🎯 Поддерживаемые AI модели
 
-### Cloudflare Workers AI:
-| Ключ | ID | Описание |
-|------|-----|----------|
-| `Llama-3.3-70b` | `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | Default, стабильная |
-| `Llama-3-8b` | `@cf/meta/llama-3-8b-instruct` | Компактная |
-| `Llama-4-Scout-8b` | `@cf/meta/llama-4-scout-17b-16e-instruct` | Новая |
-| `Qwen3-30b` | `@cf/qwen/qwen3-30b-a3b-fp8` | DeepSeek |
-| `GPT-OSS-120b` | `@cf/openai/gpt-oss-120b` | OpenAI |
-| `GPT-OSS-20b` | `@cf/openai/gpt-oss-20b` | OpenAI |
-| `DeepSeek-r1-distill-qwen` | `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b` | DeepSeek |
-| `Mistral-7b-instruct` | `@cf/mistral/mistral-7b-instruct-v0.1` | Mistral |
-| `Mistral-small-3.1-24b` | `@cf/mistralai/mistral-small-3.1-24b-instruct` | Fast |
-| `IBM-Granite-4.0-h-micro` | `@cf/ibm-granite/granite-4.0-h-micro` | IBM |
+### Cloudflare Workers AI (бесплатные):
+| Ключ | ID | Context |
+|------|----|---------|
+| `Llama-3.3-70b` | `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | 24k |
+| `Llama-4-Scout` | `@cf/meta/llama-4-scout-17b-16e-instruct` | 131k |
+| `Llama-3.2-11b-vision` | `@cf/meta/llama-3.2-11b-vision-instruct` | 128k |
+| `Llama-3.2-3b` | `@cf/meta/llama-3.2-3b-instruct` | 80k |
+| `Llama-3.2-1b` | `@cf/meta/llama-3.2-1b-instruct` | 60k |
+| `Llama-3.1-8b-fp8` | `@cf/meta/llama-3.1-8b-instruct-fp8` | 32k |
+| `DeepSeek-R1-Distill-32b` | `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b` | 80k |
+| `Qwen3-30b-fp8` | `@cf/qwen/qwen3-30b-a3b-fp8` | 32k |
+| `Qwen3.8-27b` | `@cf/qwen/qwen3.8-27b` | 262k |
+| `Qwen2.5-Coder-32b` | `@cf/qwen/qwen2.5-coder-32b-instruct` | 32k |
+| `QwQ-32b` | `@cf/qwen/qwq-32b` | 24k |
+| `Mistral-Small-3.1-24b` | `@cf/mistralai/mistral-small-3.1-24b-instruct` | 128k |
+| `Mistral-7b-v0.2-LoRA` | `@cf/mistral/mistral-7b-instruct-v0.2-lora` | 15k |
+| `Nemotron-3-120b` | `@cf/nvidia/nemotron-3-120b-a12b` | 256k |
+| `GPT-OSS-120b` | `@cf/openai/gpt-oss-120b` | 128k |
+| `GPT-OSS-20b` | `@cf/openai/gpt-oss-20b` | 128k |
+| `Gemma-4-26b` | `@cf/google/gemma-4-26b-a4b-it` | 256k |
+| `Gemma-SEA-LION-27b` | `@cf/aisingapore/gemma-sea-lion-v4-27b-it` | 128k |
+| `IBM-Granite-4.0-micro` | `@cf/ibm-granite/granite-4.0-h-micro` | 131k |
+| `GLM-4.7-Flash` | `@cf/zai-org/glm-4.7-flash` | 131k |
+| `Apertus-1.5-8b` | `@cf/swiss-ai/apertus-v1.5-8b` | 262k |
+| `EuroLLM-9b` | `@cf/utter-project/eurollm-9b-it` | 32k |
+| `Llama-Guard-3-8b` | `@cf/meta/llama-guard-3-8b` | 131k |
 
 ### Google AI API:
 | Ключ | ID | Описание |
-|------|-----|----------|
+|------|----|---------|
 | `gemini-3-flash-preview` | `gemini-3-flash-preview` | Grounding search |
 | `gemini-flash-latest` | `gemini-flash-latest` | Fast |
 | `gemini-2.5-flash` | `gemini-2.5-flash` | Fast |
-| `gemini-2.0-flash-lite` | `gemini-2.5-flash-lite` | Lite |
+| `gemini-2.0-flash-lite` | `gemini-2.0-flash-lite` | Lite |
 
-### OpenRouter:
-| Ключ | ID | Описание |
-|------|-----|----------|
-| `Qwen3-next-thinking` | `qwen/qwen3-next-80b-a3b-thinking` | Reasoning |
-| `Qwen3-next-instruct` | `qwen/qwen3-next-80b-a3b-instruct` | Instruct |
-| `DeepSeek-r1-qwen3` | `deepseek/deepseek-r1-0528-qwen3-8b` | Free |
-| `Codellama-code` | `meta-llama/llama-3.3-70b-instruct:free` | Free code |
-| `MythoMax-13b` | `gryphe/mythomax-l2-13b` | Free |
+### Mistral AI (Direct API):
+| Ключ | ID |
+|------|----|
+| `mistral-tiny` | `mistral-tiny-latest` |
+| `mistral-small` | `mistral-small-latest` |
+| `mistral-medium` | `mistral-medium-latest` |
+| `mistral-large` | `mistral-large-latest` |
+
+### Anthropic Claude (Direct API):
+| Ключ | ID |
+|------|----|
+| `claude-opus-4-7` | `claude-opus-4-7` |
+| `claude-sonnet-4-6` | `claude-sonnet-4-6` |
+| `claude-haiku-4-5` | `claude-haiku-4-5-20251001` |
+| `claude-3-5-sonnet` | `claude-3-5-sonnet-20240620` |
 
 ---
 
@@ -299,8 +319,8 @@ npm run lint:commits    # Conventional commit check
    - Продакшен деплой только через CI/CD
 
 3. **Never commit secrets or API keys**  
-   - `CLOUDFLARE_API_TOKEN` → GitHub Secrets
-   - `TELEGRAM_TOKEN`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY` → Cloudflare dashboard
+  - `CLOUDFLARE_API_TOKEN` → GitHub Secrets
+  - `TELEGRAM_TOKEN`, `GOOGLE_AI_API_KEY` → Cloudflare dashboard
 
 4. **Never force-push to `main` branch**
    - `git push --force` и `git push --force-with-lease` запрещены
@@ -358,7 +378,7 @@ npm run lint:commits    # Conventional commit check
 | **Production URL** | https://ai.dessyatykh.workers.dev |
 | **Upload size** | 27.25 KiB (7.02 KiB gzipped) |
 | **Worker bindings** | `AI`, `ASSETS`, `RATE_LIMIT_KV`, `OLLAMA_ENDPOINT` |
-| **AI models** | 14 Cloudflare + 4 Google + 8 OpenRouter |
+| **AI models** | 23 Cloudflare (бесплатные) + 11 Google + 4 Mistral + 4 Claude |
 | **Rate limit** | 10 requests/minute per IP |
 | **Max history** | 50 messages per chat |
 | **Max message length** | 10000 characters |

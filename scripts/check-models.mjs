@@ -3,8 +3,7 @@
  * check-models.mjs
  * -----------------
  * Проверяет, какие модели реально доступны по твоим API-ключам
- * у трёх провайдеров, которые используются в Mission Shekinah AI:
- *  - OpenRouter
+ * у провайдеров, которые используются в Mission Shekinah AI:
  *  - Google Gemini
  *  - Cloudflare Workers AI
  *
@@ -15,7 +14,6 @@
  *   npm install dotenv
  *
  * Переменные окружения (положи в .env, НЕ в код и НЕ в git):
- *   OPENROUTER_API_KEY=sk-or-...
  *   GEMINI_API_KEY=AIzaSy...
  *   CF_API_TOKEN=...
  *   CF_ACCOUNT_ID=...
@@ -35,38 +33,7 @@ const c = {
 };
 
 // ---------------------------------------------------------------------------
-// 1. OpenRouter — отдаёт полный список моделей + цены, ключ нужен только
-//    чтобы видеть лимиты/доступность, список моделей открыт даже без ключа,
-//    но мы всё равно шлём ключ, чтобы быть последовательными.
-// ---------------------------------------------------------------------------
-async function checkOpenRouter() {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) return { status: 'skip', reason: 'OPENROUTER_API_KEY не задан' };
-
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/models', {
-      headers: { Authorization: `Bearer ${key}` },
-    });
-    if (!res.ok) return { status: 'error', code: res.status };
-
-    const data = await res.json();
-    const free = data.data
-      .filter((m) => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
-      .map((m) => m.id);
-
-    return {
-      status: 'ok',
-      totalModels: data.data.length,
-      freeModelsCount: free.length,
-      freeModels: free.slice(0, 15), // первые 15, чтобы не заваливать вывод
-    };
-  } catch (e) {
-    return { status: 'error', message: e.message };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 2. Google Gemini — список моделей, доступных конкретно для твоего ключа.
+// 1. Google Gemini — список моделей, доступных конкретно для твоего ключа.
 // ---------------------------------------------------------------------------
 async function checkGemini() {
   const key = process.env.GEMINI_API_KEY;
@@ -91,7 +58,7 @@ async function checkGemini() {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Cloudflare Workers AI — список моделей, доступных на твоём аккаунте.
+// 2. Cloudflare Workers AI — список моделей, доступных на твоём аккаунте.
 //    Нужен CF_API_TOKEN (Workers AI: Read) и CF_ACCOUNT_ID.
 // ---------------------------------------------------------------------------
 async function checkCloudflareAI() {
@@ -132,14 +99,12 @@ function printSection(title, result) {
   }
 }
 
-const [openrouter, gemini, cloudflare] = await Promise.all([
-  checkOpenRouter(),
+const [gemini, cloudflare] = await Promise.all([
   checkGemini(),
   checkCloudflareAI(),
 ]);
 
-printSection('OpenRouter', openrouter);
 printSection('Google Gemini', gemini);
 printSection('Cloudflare Workers AI', cloudflare);
 
-console.log(c.bold('\nГотово. Сверь этот список с FALLBACK_MODELS в src/types.ts.'));
+console.log(c.bold('\nГотово. Сверь этот список с SUPPORTED_MODELS в src/index.ts.'));

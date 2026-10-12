@@ -102,77 +102,74 @@ function validateRequest(requestData: any): { valid: boolean; error?: string } {
  * 1. ПОЛНЫЙ СПИСОК ПОДДЕРЖИВАЕМЫХ МОДЕЛЕЙ
  */
 const SUPPORTED_MODELS: Record<string, string> = {
-  // Cloudflare Workers AI
-  "Llama-3.3-70b": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-  "Gemini-3.5-flash": "@cf/google/gemini-3.5-flash",
-  "Llama-3-8b": "@cf/meta/llama-3-8b-instruct",
-  "Llama-4-Scout-8b": "@cf/meta/llama-4-scout-17b-16e-instruct",
-  "Llama-4-Scout": "@cf/meta/llama-4-scout-17b-16e-instruct",
-  "Meta-Llama-3-8b": "@hf/meta-llama/meta-llama-3-8b-instruct",
-  "GPT-5-mini": "openai/gpt-5-mini",
-  "GPT-5-nano": "openai/gpt-5-nano",
-  "GPT-OSS-120b": "@cf/openai/gpt-oss-120b",
-  "GPT-OSS-20b": "@cf/openai/gpt-oss-20b",
-  "Qwen3-30b": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "Qwen2.5-coder": "@cf/qwen/qwen2.5-coder-32b-instruct",
-  "Qwen-QwQ-32b": "@cf/qwen/qwq-32b",
-  "DeepSeek-r1-distill-qwen": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
-  "Mistral-7b-instruct-v0.1": "@cf/mistral/mistral-7b-instruct-v0.1",
-  "Mistral-small-3.1-24b": "@cf/mistralai/mistral-small-3.1-24b-instruct",
-  "IBM-Granite-4.0-h-micro": "@cf/ibm-granite/granite-4.0-h-micro",
+  // --- Cloudflare Workers AI (бесплатные модели) ---
+  "Llama-3.3-70b":           "@cf/meta/llama-3.3-70b-instruct-fp8-fast",      // 24k ctx
+  "Llama-4-Scout":           "@cf/meta/llama-4-scout-17b-16e-instruct",        // 131k ctx
+  "Llama-3.2-11b-vision":    "@cf/meta/llama-3.2-11b-vision-instruct",         // 128k ctx
+  "Llama-3.2-3b":            "@cf/meta/llama-3.2-3b-instruct",                 // 80k ctx
+  "Llama-3.2-1b":            "@cf/meta/llama-3.2-1b-instruct",                 // 60k ctx
+  "Llama-3.1-8b-fp8":        "@cf/meta/llama-3.1-8b-instruct-fp8",             // 32k ctx
+  "DeepSeek-R1-Distill-32b": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",  // 80k ctx
+  "Qwen3-30b-fp8":           "@cf/qwen/qwen3-30b-a3b-fp8",                    // 32k ctx
+  "Qwen3.8-27b":             "@cf/qwen/qwen3.8-27b",                           // 262k ctx
+  "Qwen2.5-Coder-32b":       "@cf/qwen/qwen2.5-coder-32b-instruct",           // 32k ctx
+  "QwQ-32b":                 "@cf/qwen/qwq-32b",                               // 24k ctx
+  "Mistral-Small-3.1-24b":   "@cf/mistralai/mistral-small-3.1-24b-instruct",  // 128k ctx
+  "Mistral-7b-v0.2-LoRA":    "@cf/mistral/mistral-7b-instruct-v0.2-lora",     // 15k ctx
+  "Nemotron-3-120b":         "@cf/nvidia/nemotron-3-120b-a12b",               // 256k ctx
+  "GPT-OSS-120b":            "@cf/openai/gpt-oss-120b",                        // 128k ctx
+  "GPT-OSS-20b":             "@cf/openai/gpt-oss-20b",                         // 128k ctx
+  "Gemma-4-26b":             "@cf/google/gemma-4-26b-a4b-it",                  // 256k ctx
+  "Gemma-SEA-LION-27b":      "@cf/aisingapore/gemma-sea-lion-v4-27b-it",       // 128k ctx
+  "IBM-Granite-4.0-micro":   "@cf/ibm-granite/granite-4.0-h-micro",            // 131k ctx
+  "GLM-4.7-Flash":           "@cf/zai-org/glm-4.7-flash",                      // 131k ctx
+  "Apertus-1.5-8b":          "@cf/swiss-ai/apertus-v1.5-8b",                   // 262k ctx
+  "EuroLLM-9b":              "@cf/utter-project/eurollm-9b-it",                // 32k ctx
+  "Llama-Guard-3-8b":        "@cf/meta/llama-guard-3-8b",                      // 131k ctx
 
-  // Google AI API — Семейство Gemini
-  "gemini-3.5-flash": "gemini-3.5-flash",
-  "gemini-3-flash-preview": "gemini-3-flash-preview",
-  "gemini-2.5-flash": "gemini-2.5-flash",
-  "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
-  "gemini-2.0-flash": "gemini-2.0-flash",
-  "gemini-2.0-flash-lite": "gemini-2.0-flash-lite",
-  "gemini-flash-latest": "gemini-flash-latest",
+  // --- Google AI API ---
+  "gemini-3.5-flash":         "gemini-3.5-flash",
+  "gemini-3-flash-preview":   "gemini-3-flash-preview",
+  "gemini-2.5-flash":         "gemini-2.5-flash",
+  "gemini-2.5-flash-lite":    "gemini-2.5-flash-lite",
+  "gemini-2.0-flash":         "gemini-2.0-flash",
+  "gemini-2.0-flash-lite":    "gemini-2.0-flash-lite",
+  "gemini-flash-latest":      "gemini-flash-latest",
   "gemini-flash-lite-latest": "gemini-flash-lite-latest",
-  "gemini-pro-latest": "gemini-pro-latest",
+  "gemini-pro-latest":        "gemini-pro-latest",
+  "gemma-4-31b-it":           "gemma-4-31b-it",
+  "gemma-4-26b-a4b-it":       "gemma-4-26b-a4b-it",
 
-  // Google AI API — Семейство Gemma (Младшие собратья)
-  "gemma-4-31b-it": "gemma-4-31b-it",
-  "gemma-4-26b-a4b-it": "gemma-4-26b-a4b-it",
+  // --- Mistral AI (Direct API) ---
+  "codestral-2508":          "codestral-2508",
+  "codestral-latest":        "codestral-latest",
+  "ministral-3b-latest":     "ministral-3b-latest",
+  "ministral-8b-latest":     "ministral-8b-latest",
+  "ministral-14b-latest":    "ministral-14b-latest",
+  "mistral-small-2603":      "mistral-small-2603",
+  "mistral-small-latest":    "mistral-small-latest",
+  "mistral-medium-2604":     "mistral-medium-2604",
+  "mistral-medium-3":        "mistral-medium-3",
+  "mistral-medium-3.5":      "mistral-medium-3.5",
+  "mistral-medium-latest":   "mistral-medium-latest",
+  "magistral-small-latest":  "magistral-small-latest",
+  "magistral-medium-latest": "magistral-medium-latest",
 
-  // OpenRouter: Мудрецы & DeepSeek
-  // "Qwen3-next-thinking": "qwen/qwen3-next-80b-a3b-thinking",
-  // "Qwen3-next-instruct": "qwen/qwen3-next-80b-a3b-instruct",
-  // "DeepSeek-r1-qwen3": "deepseek/deepseek-r1-0528-qwen3-8b",
-
-  // Mistral AI Models (Direct API)
-  "mistral-tiny": "mistral-tiny-latest",
-  "mistral-small": "mistral-small-latest",
-  "mistral-medium": "mistral-medium-latest",
-  "mistral-large": "mistral-large-latest",
-
-  // Anthropic Models (Direct API)
-  // ВАЖНО: id моделей ниже соответствуют актуальным алиасам Anthropic API
-  // на момент написания. Раньше здесь были выдуманные id с датой "20260627"
-  // (день, когда писался код) — такого snapshot-а не существует, запросы
-  // с ним всегда падали бы на fallback. Перед деплоем сверь актуальный
-  // список через check-claude-models.mjs (GET /v1/models с твоим ключом) —
-  // это единственный надёжный источник правды, а не код или память модели.
-  "claude-sonnet-4-6": "claude-sonnet-4-6",
-  "claude-opus-4-7": "claude-opus-4-7",
-  "claude-haiku-4-5": "claude-haiku-4-5-20251001",
-  "claude-3-5-sonnet": "claude-3-5-sonnet-20240620",  // Легаси поддержка
-
-  // OpenRouter Free Options
-  // "Codellama-code": "meta-llama/llama-3.3-70b-instruct:free",
-  // "Xiaomi-mimo-v2-flash": "xiaomi/mimo-v2-flash:free",
-  // "Qwen-2.5-vl-7b-instruct": "qwen/qwen-2.5-vl-7b-instruct:free",
-  // "Trinity-mini": "arcee-ai/tr-minityini:free",
-
-  // DeepSeek Models
-  // "QlM-4.5-air": "z-ai/glm-4.5-air:free",
-  // "Qwen-qwen3-coder": "qwen/qwen3-coder:free",
-  // "DeepSeek-r1t2-chimera": "tngtech/deepseek-r1t2-chimera:free",
-  // "DeepSeek-r1t-chimera": "tngtech/deepseek-r1t-chimera:free",
-
-  // Giants and Poets of OpenRouter
-  // "MythoMax-13b": "gryphe/mythomax-l2-13b"
+  // --- Anthropic Claude (Direct API) ---
+  "claude-sonnet-5-5":  "claude-sonnet-5-5",
+  "claude-opus-5-5":    "claude-opus-5-5",
+  "claude-fable-5-1":   "claude-fable-5-1",
+  "claude-opus-5":      "claude-opus-5",
+  "claude-sonnet-5":    "claude-sonnet-5",
+  "claude-fable-5":     "claude-fable-5",
+  "claude-opus-4-8":    "claude-opus-4-8",
+  "claude-opus-4-7":    "claude-opus-4-7",
+  "claude-sonnet-4-6":  "claude-sonnet-4-6",
+  "claude-opus-4-6":    "claude-opus-4-6",
+  "claude-haiku-4-5":   "claude-haiku-4-5-20251001",
+  "claude-sonnet-4-5":  "claude-sonnet-4-5-20250929",
+  "claude-opus-4-5":    "claude-opus-4-5-20251101",
+  "claude-3-5-sonnet":  "claude-3-5-sonnet-20240620",
 };
 
 const DEFAULT_MODEL_KEY = "Llama-3.3-70b";
@@ -404,14 +401,13 @@ async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatR
     }
 
     let content = "";
-    if (currentModelKey.includes("gemini") || currentModelKey.includes("gemma")) {
+    const keyLower = currentModelKey.toLowerCase();
+    if (keyLower.includes("gemini") || keyLower.includes("gemma")) {
       content = await handleGoogleDirect(currentModelId, currentChatMessages, env);
-    } else if (currentModelKey.includes("mistral")) {
+    } else if (keyLower.includes("mistral")) {
       content = await handleMistralDirect(currentModelId, currentChatMessages, env);
-    } else if (currentModelKey.includes("claude")) {
+    } else if (keyLower.includes("claude")) {
       content = await handleAnthropicDirect(currentModelId, currentChatMessages, env);
-    } else if (currentModelId.includes("/") && !currentModelId.startsWith("@")) {
-      content = await handleOpenRouterDirect(currentModelId, currentChatMessages, env);
     } else {
       const response = await handleCloudflareModel(currentModelId, currentChatMessages, env);
 
@@ -713,50 +709,6 @@ async function handleGoogleDirect(modelId: string, messages: any[], env: Env) {
 
   // Все ключи перебраны — никто не смог помочь
   throw new Error(`Все API-ключи Google исчерпали лимиты или недоступны. Последняя ошибка: ${lastErrMsg}`);
-}
-
-async function handleOpenRouterDirect(modelId: string, messages: any[], env: Env) {
-  const apiKey = env.OPENROUTER_API_KEY;
-
-  // Определение максимального количества токенов в зависимости от модели
-  let maxTokens = 800; // По умолчанию для бесплатных моделей
-
-  // Для платных моделей можно использовать больше токенов
-  if (!modelId.includes(":free")) {
-    maxTokens = 2048;
-  }
-
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      max_tokens: maxTokens  // Используем адаптивное значение
-    })
-  });
-
-  const data: any = await res.json();
-
-  if (data.error) {
-    const msg = data.error.message || data.error;
-
-    // Обработка специфических ошибок OpenRouter
-    if (msg.includes("quota") || msg.includes("credit") || msg.includes("token")) {
-      throw new Error("OpenRouter quota or credit limit exceeded. Check your account or use a different model.");
-    }
-
-    if (msg.includes("endpoints")) {
-      throw new Error("Model temporarily unavailable. Try a different model.");
-    }
-
-    return `Ошибка OpenRouter: ${msg}`;
-  }
-
-  return data.choices?.[0]?.message?.content || "Модель OpenRouter не вернула текстовый ответ.";
 }
 
 // =========================================================================

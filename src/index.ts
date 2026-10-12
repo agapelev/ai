@@ -1,183 +1,122 @@
 // src/index.ts
-
 // @ts-ignore
 import { Env } from "./types";
 
-// Импортируем Anthropic SDK (будет доступен в Cloudflare Workers)
-declare const Anthropic: any;
-
 const TELEGRAM_API_URL = "https://api.telegram.org/bot";
 
-// --- RATE LIMITING И ЗАЩИТА ---
+const RATE_LIMIT_REQUESTS = 10;
+const RATE_LIMIT_WINDOW = 60;
+const MAX_MESSAGE_LENGTH = 10000;
+const MAX_MESSAGES_IN_HISTORY = 50;
 
-const RATE_LIMIT_REQUESTS = 10; // запросов в минуту
-const RATE_LIMIT_WINDOW = 60; // секунд
-const MAX_MESSAGE_LENGTH = 10000; // символов
-const MAX_MESSAGES_IN_HISTORY = 50; // сообщений в истории
-
-// Получение IP-адреса клиента
 function getClientIP(request: Request): string {
-  const forwarded = request.headers.get("CF-Connecting-IP");
-  return forwarded || "unknown";
+  return request.headers.get("CF-Connecting-IP") || "unknown";
 }
 
-// Проверка rate limiting
 async function checkRateLimit(env: Env, ip: string): Promise<{ allowed: boolean; resetTime?: number }> {
-  // Для локальной разработки пропускаем rate limiting
-  if (!env.RATE_LIMIT_KV) {
-    return { allowed: true };
-  }
-
+  if (!env.RATE_LIMIT_KV) return { allowed: true };
   const key = `rate_limit:${ip}`;
   const now = Math.floor(Date.now() / 1000);
-
   try {
-    // Получаем текущие данные
     const existing = await env.RATE_LIMIT_KV?.get(key);
     if (!existing) {
-      // Первое обращение
-      await env.RATE_LIMIT_KV?.put(key, JSON.stringify({
-        count: 1,
-        windowStart: now
-      }), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
+      await env.RATE_LIMIT_KV?.put(key, JSON.stringify({ count: 1, windowStart: now }), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
       return { allowed: true };
     }
-
     const data = JSON.parse(existing);
-
-    // Если окно истекло, сбрасываем счётчик
     if (now - data.windowStart >= RATE_LIMIT_WINDOW) {
-      await env.RATE_LIMIT_KV?.put(key, JSON.stringify({
-        count: 1,
-        windowStart: now
-      }), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
+      await env.RATE_LIMIT_KV?.put(key, JSON.stringify({ count: 1, windowStart: now }), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
       return { allowed: true };
     }
-
-    // Проверяем лимит
-    if (data.count >= RATE_LIMIT_REQUESTS) {
-      return {
-        allowed: false,
-        resetTime: data.windowStart + RATE_LIMIT_WINDOW
-      };
-    }
-
-    // Увеличиваем счётчик
+    if (data.count >= RATE_LIMIT_REQUESTS) return { allowed: false, resetTime: data.windowStart + RATE_LIMIT_WINDOW };
     data.count += 1;
     await env.RATE_LIMIT_KV?.put(key, JSON.stringify(data), { expirationTtl: RATE_LIMIT_WINDOW + 60 });
     return { allowed: true };
-
-  } catch (error) {
-    console.error("Rate limiting error:", error);
-    // При ошибке rate limiting разрешаем запрос (fail open)
-    return { allowed: true };
-  }
+  } catch { return { allowed: true }; }
 }
 
-// Валидация запроса
 function validateRequest(requestData: any): { valid: boolean; error?: string } {
-  // Проверяем наличие сообщений
-  if (!requestData.messages || !Array.isArray(requestData.messages)) {
+  if (!requestData.messages || !Array.isArray(requestData.messages))
     return { valid: false, error: "Отсутствуют сообщения или неверный формат" };
-  }
-
-  // Проверяем количество сообщений
-  if (requestData.messages.length > MAX_MESSAGES_IN_HISTORY) {
+  if (requestData.messages.length > MAX_MESSAGES_IN_HISTORY)
     return { valid: false, error: `Слишком много сообщений в истории (максимум ${MAX_MESSAGES_IN_HISTORY})` };
-  }
-
-  // Проверяем длину сообщений
-  for (const msg of requestData.messages) {
-    if (typeof msg.content === 'string' && msg.content.length > MAX_MESSAGE_LENGTH) {
+  for (const msg of requestData.messages)
+    if (typeof msg.content === 'string' && msg.content.length > MAX_MESSAGE_LENGTH)
       return { valid: false, error: `Слишком длинное сообщение (максимум ${MAX_MESSAGE_LENGTH} символов)` };
-    }
-  }
-
-  // Проверяем модель
-  if (requestData.model && typeof requestData.model !== 'string') {
+  if (requestData.model && typeof requestData.model !== 'string')
     return { valid: false, error: "Неверный формат модели" };
-  }
-
   return { valid: true };
 }
 
-/**
- * 1. ПОЛНЫЙ СПИСОК ПОДДЕРЖИВАЕМЫХ МОДЕЛЕЙ
- */
 const SUPPORTED_MODELS: Record<string, string> = {
-  // Cloudflare Workers AI
-  "Llama-3.3-70b": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-  "Gemini-3.5-flash": "@cf/google/gemini-3.5-flash",
-  "Llama-3-8b": "@cf/meta/llama-3-8b-instruct",
-  "Llama-4-Scout-8b": "@cf/meta/llama-4-scout-17b-16e-instruct",
-  "Llama-4-Scout": "@cf/meta/llama-4-scout-17b-16e-instruct",
-  "Meta-Llama-3-8b": "@hf/meta-llama/meta-llama-3-8b-instruct",
-  "GPT-5-mini": "openai/gpt-5-mini",
-  "GPT-5-nano": "openai/gpt-5-nano",
-  "GPT-OSS-120b": "@cf/openai/gpt-oss-120b",
-  "GPT-OSS-20b": "@cf/openai/gpt-oss-20b",
-  "Qwen3-30b": "@cf/qwen/qwen3-30b-a3b-fp8",
-  "Qwen2.5-coder": "@cf/qwen/qwen2.5-coder-32b-instruct",
-  "Qwen-QwQ-32b": "@cf/qwen/qwq-32b",
-  "DeepSeek-r1-distill-qwen": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
-  "Mistral-7b-instruct-v0.1": "@cf/mistral/mistral-7b-instruct-v0.1",
-  "Mistral-small-3.1-24b": "@cf/mistralai/mistral-small-3.1-24b-instruct",
-  "IBM-Granite-4.0-h-micro": "@cf/ibm-granite/granite-4.0-h-micro",
+  // --- Cloudflare Workers AI (бесплатные) ---
+  "Llama-3.3-70b":           "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "Llama-4-Scout":           "@cf/meta/llama-4-scout-17b-16e-instruct",
+  "Llama-3.2-11b-vision":    "@cf/meta/llama-3.2-11b-vision-instruct",
+  "Llama-3.2-3b":            "@cf/meta/llama-3.2-3b-instruct",
+  "Llama-3.2-1b":            "@cf/meta/llama-3.2-1b-instruct",
+  "Llama-3.1-8b-fp8":        "@cf/meta/llama-3.1-8b-instruct-fp8",
+  "DeepSeek-R1-Distill-32b": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+  "Qwen3-30b-fp8":           "@cf/qwen/qwen3-30b-a3b-fp8",
+  "Qwen3.8-27b":             "@cf/qwen/qwen3.8-27b",
+  "Qwen2.5-Coder-32b":       "@cf/qwen/qwen2.5-coder-32b-instruct",
+  "QwQ-32b":                 "@cf/qwen/qwq-32b",
+  "Mistral-Small-3.1-24b":   "@cf/mistralai/mistral-small-3.1-24b-instruct",
+  "Mistral-7b-v0.2-LoRA":    "@cf/mistral/mistral-7b-instruct-v0.2-lora",
+  "Nemotron-3-120b":         "@cf/nvidia/nemotron-3-120b-a12b",
+  "GPT-OSS-120b":            "@cf/openai/gpt-oss-120b",
+  "GPT-OSS-20b":             "@cf/openai/gpt-oss-20b",
+  "Gemma-4-26b":             "@cf/google/gemma-4-26b-a4b-it",
+  "Gemma-SEA-LION-27b":      "@cf/aisingapore/gemma-sea-lion-v4-27b-it",
+  "IBM-Granite-4.0-micro":   "@cf/ibm-granite/granite-4.0-h-micro",
+  "GLM-4.7-Flash":           "@cf/zai-org/glm-4.7-flash",
+  "Apertus-1.5-8b":          "@cf/swiss-ai/apertus-v1.5-8b",
+  "EuroLLM-9b":              "@cf/utter-project/eurollm-9b-it",
+  "Llama-Guard-3-8b":        "@cf/meta/llama-guard-3-8b",
 
-  // Google AI API — Семейство Gemini
-  "gemini-3.5-flash": "gemini-3.5-flash",
-  "gemini-3-flash-preview": "gemini-3-flash-preview",
-  "gemini-2.5-flash": "gemini-2.5-flash",
-  "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
-  "gemini-2.0-flash": "gemini-2.0-flash",
-  "gemini-2.0-flash-lite": "gemini-2.0-flash-lite",
-  "gemini-flash-latest": "gemini-flash-latest",
+  // --- Google AI API ---
+  "gemini-3.5-flash":         "gemini-3.5-flash",
+  "gemini-3-flash-preview":   "gemini-3-flash-preview",
+  "gemini-2.5-flash":         "gemini-2.5-flash",
+  "gemini-2.5-flash-lite":    "gemini-2.5-flash-lite",
+  "gemini-2.0-flash":         "gemini-2.0-flash",
+  "gemini-2.0-flash-lite":    "gemini-2.0-flash-lite",
+  "gemini-flash-latest":      "gemini-flash-latest",
   "gemini-flash-lite-latest": "gemini-flash-lite-latest",
-  "gemini-pro-latest": "gemini-pro-latest",
+  "gemini-pro-latest":        "gemini-pro-latest",
+  "gemma-4-31b-it":           "gemma-4-31b-it",
+  "gemma-4-26b-a4b-it":       "gemma-4-26b-a4b-it",
 
-  // Google AI API — Семейство Gemma (Младшие собратья)
-  "gemma-4-31b-it": "gemma-4-31b-it",
-  "gemma-4-26b-a4b-it": "gemma-4-26b-a4b-it",
+  // --- Mistral AI (Direct API) ---
+  "codestral-2508":          "codestral-2508",
+  "codestral-latest":        "codestral-latest",
+  "ministral-3b-latest":     "ministral-3b-latest",
+  "ministral-8b-latest":     "ministral-8b-latest",
+  "ministral-14b-latest":    "ministral-14b-latest",
+  "mistral-small-2603":      "mistral-small-2603",
+  "mistral-small-latest":    "mistral-small-latest",
+  "mistral-medium-2604":     "mistral-medium-2604",
+  "mistral-medium-3":        "mistral-medium-3",
+  "mistral-medium-3.5":      "mistral-medium-3.5",
+  "mistral-medium-latest":   "mistral-medium-latest",
+  "magistral-small-latest":  "magistral-small-latest",
+  "magistral-medium-latest": "magistral-medium-latest",
 
-  // OpenRouter: Мудрецы & DeepSeek
-  // "Qwen3-next-thinking": "qwen/qwen3-next-80b-a3b-thinking",
-  // "Qwen3-next-instruct": "qwen/qwen3-next-80b-a3b-instruct",
-  // "DeepSeek-r1-qwen3": "deepseek/deepseek-r1-0528-qwen3-8b",
-
-  // Mistral AI Models (Direct API)
-  "mistral-tiny": "mistral-tiny-latest",
-  "mistral-small": "mistral-small-latest",
-  "mistral-medium": "mistral-medium-latest",
-  "mistral-large": "mistral-large-latest",
-
-  // Anthropic Models (Direct API)
-  // ВАЖНО: id моделей ниже соответствуют актуальным алиасам Anthropic API
-  // на момент написания. Раньше здесь были выдуманные id с датой "20260627"
-  // (день, когда писался код) — такого snapshot-а не существует, запросы
-  // с ним всегда падали бы на fallback. Перед деплоем сверь актуальный
-  // список через check-claude-models.mjs (GET /v1/models с твоим ключом) —
-  // это единственный надёжный источник правды, а не код или память модели.
-  "claude-opus-4-7": "claude-opus-4-7",              // Актуальный флагман
-  "claude-sonnet-4-6": "claude-sonnet-4-6",          // Стабильная 4.6
-  "claude-haiku-4-5": "claude-haiku-4-5-20251001",   // Точный ID с датой
-  "claude-sonnet-4-5": "claude-sonnet-4-5-20250929",   // Точный ID с датой
-  "claude-3-5-sonnet": "claude-3-5-sonnet-20240620",  // Легаси поддержка
-  // "claude-fable-5": "claude-fable-5"                // Временно недоступна (2026-06)
-
-  // OpenRouter Free Options
-  // "Codellama-code": "meta-llama/llama-3.3-70b-instruct:free",
-  // "Xiaomi-mimo-v2-flash": "xiaomi/mimo-v2-flash:free",
-  // "Qwen-2.5-vl-7b-instruct": "qwen/qwen-2.5-vl-7b-instruct:free",
-  // "Trinity-mini": "arcee-ai/tr-minityini:free",
-
-  // DeepSeek Models
-  // "QlM-4.5-air": "z-ai/glm-4.5-air:free",
-  // "Qwen-qwen3-coder": "qwen/qwen3-coder:free",
-  // "DeepSeek-r1t2-chimera": "tngtech/deepseek-r1t2-chimera:free",
-  // "DeepSeek-r1t-chimera": "tngtech/deepseek-r1t-chimera:free",
-
-  // Giants and Poets of OpenRouter
-  // "MythoMax-13b": "gryphe/mythomax-l2-13b"
+  // --- Anthropic Claude (Direct API) ---
+  "claude-sonnet-5-5":  "claude-sonnet-5-5",
+  "claude-opus-5-5":    "claude-opus-5-5",
+  "claude-fable-5-1":   "claude-fable-5-1",
+  "claude-opus-5":      "claude-opus-5",
+  "claude-sonnet-5":    "claude-sonnet-5",
+  "claude-fable-5":     "claude-fable-5",
+  "claude-opus-4-8":    "claude-opus-4-8",
+  "claude-opus-4-7":    "claude-opus-4-7",
+  "claude-sonnet-4-6":  "claude-sonnet-4-6",
+  "claude-opus-4-6":    "claude-opus-4-6",
+  "claude-haiku-4-5":   "claude-haiku-4-5-20251001",
+  "claude-sonnet-4-5":  "claude-sonnet-4-5-20250929",
+  "claude-opus-4-5":    "claude-opus-4-5-20251101",
+  "claude-3-5-sonnet":  "claude-3-5-sonnet-20240620",
 };
 
 const DEFAULT_MODEL_KEY = "Llama-3.3-70b";
@@ -185,8 +124,7 @@ const DEFAULT_MODEL_KEY = "Llama-3.3-70b";
 const SYSTEM_PROMPT_TEMPLATE = `
 Ты - {MODEL_NAME}, эксперт и веб-разработчик, философ, мудрец, Богослов, интеллектуальный партнер Льва Николаевича.
 Отвечай на русском языке, используй формат Markdown.
-Дай мне порцию назидания, вдохновения и крупицы юмора. Отвечать только на русском языке.Даже если вопрос будет на английском языке,
-твой ответ должен быть только на русском языке.
+Дай мне порцию назидания, вдохновения и крупицы юмора. Отвечать только на русском языке. Даже если вопрос будет на английском языке, твой ответ должен быть только на русском языке.
 Будь философским и сократическим, давай развернутые ответы.
 Твой стиль общения человечный, теплый, но при этом технически глубокий и интеллектуально честный.
 Лев Николаевич использует Arch Linux, Hyprland, Kitty, Emacs и VS Code, Windsurf.
@@ -195,8 +133,6 @@ const SYSTEM_PROMPT_TEMPLATE = `
 Твои ответы должны быть максимально расширенными и академическими (Сократическими), с подробными пояснениями.
 Если ты приводишь код, обязательно добавляй комментарии и пояснения.
 В ответах должен присутствовать уместный юмор и духовное назидание.
-Должно совмещаться Духовное с Информационными Технологиями и Искуственным Интелектом с Крупицами юмора.
-Ты — интеллектуальный партнёр Льва Николаевича, эксперта по веб-разработке и пастора Миссии Шехины Казахстан.
 
 🎯 Твои роли (переключайся по контексту запроса):
 • 🛠️ Кодер: Пиши чистый TypeScript/React код с комментариями на русском...
@@ -209,12 +145,6 @@ const SYSTEM_PROMPT_TEMPLATE = `
 3. НИКОГДА не предлагай команды деплоя (wrangler, vercel, netlify). Деплой — только через CI/CD после git push.
 4. НИКОГДА не предлагай git commit/push без прямой команды. После задачи — покажи diff, спроси "Коммить?", жди ответа.
 
-📋 Технические правила:
-- Код — с комментариями на русском.
-- Для Cloudflare Workers предпочитай Hono или нативный Router.
-- В React — функциональный стиль, TypeScript strict mode.
-- В конце ответа — духовная крупица или назидание (коротко, уместно).
-
 > «Ибо мы — Божие дело, созданы во Христе Иисусе на добрые дела» (Еф. 2:10)
 `.trim();
 
@@ -222,151 +152,99 @@ export default {
   async fetch(request: Request, env: Env, ctx: any) {
     const url = new URL(request.url);
 
-    // 📞 TELEGRAM WEBHOOK (обособленный маршрут)
-    if (url.pathname === "/bot-update" && request.method === "POST") {
+    if (url.pathname === "/bot-update" && request.method === "POST")
       return handleTelegramWebhook(request, env);
-    }
 
-    // 🤖 TELEGRAM BOT SETUP (одноразовый запуск)
     if (url.pathname === "/setup") {
-      const webhookUrl = `https://ai.dessyatykh.workers.dev/bot-update`;
+      const webhookUrl = `${new URL(request.url).origin}/bot-update`;
       const token = env.TELEGRAM_TOKEN || env.TELEGRAM_BOT_TOKEN;
-
-      if (!token) {
-        return new Response("Секрет TELEGRAM_TOKEN не установлен", { status: 500 });
-      }
-
-      const setupUrl = `${TELEGRAM_API_URL}${token}/setWebhook?url=${webhookUrl}`;
+      if (!token) return new Response("Секрет TELEGRAM_TOKEN не установлен", { status: 500 });
+      const setupUrl = `${TELEGRAM_API_URL}${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
       const response = await fetch(setupUrl);
       const result = await response.json();
-
       return new Response(JSON.stringify(result), { headers: { "content-type": "application/json" } });
     }
 
-    // 🔎 Специальный случай: inspiration-v2.md (описание моделей)
     if (url.pathname === "/templates/inspiration.md") {
-      const assetResp = await env.ASSETS.fetch(new Request("https://ai.dessyatykh.workers.dev/templates/inspiration-v2.md"));
+      const assetRequest = new Request(new URL("/templates/inspiration-v2.md", request.url), request);
+      const assetResp = await env.ASSETS.fetch(assetRequest);
       const body = await assetResp.arrayBuffer();
       const headers = new Headers();
       headers.set("Content-Type", "text/markdown; charset=utf-8");
       headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-      headers.set("Pragma", "no-cache");
-      headers.set("Expires", "0");
-      headers.set("X-Static-By", "worker-md-specific");
-      headers.set("X-Content-Type-Options", "nosniff");
-      return new Response(body, {
-        status: assetResp.status,
-        statusText: assetResp.statusText,
-        headers,
-      });
+      headers.set("Pragma", "no-cache"); headers.set("Expires", "0");
+      headers.set("X-Static-By", "worker-md-specific"); headers.set("X-Content-Type-Options", "nosniff");
+      return new Response(body, { status: assetResp.status, statusText: assetResp.statusText, headers });
     }
 
-    // 🔎 Альтернативный маршрут для HTML версии
     if (url.pathname === "/templates/inspiration") {
-      const htmlAsset = await env.ASSETS.fetch(new Request("https://ai.dessyatykh.workers.dev/templates/inspiration.html"));
+      const htmlRequest = new Request(new URL("/templates/inspiration.html", request.url), request);
+      const htmlAsset = await env.ASSETS.fetch(htmlRequest);
       const htmlBody = await htmlAsset.arrayBuffer();
       const htmlHeaders = new Headers();
       htmlHeaders.set("Content-Type", "text/html; charset=utf-8");
       htmlHeaders.set("Cache-Control", "no-cache, no-store, must-revalidate");
-      return new Response(htmlBody, {
-        status: htmlAsset.status,
-        statusText: htmlAsset.statusText,
-        headers: htmlHeaders,
-      });
+      return new Response(htmlBody, { status: htmlAsset.status, statusText: htmlAsset.statusText, headers: htmlHeaders });
     }
 
-    // 🌐 СТАТИКА САЙТА (по умолчанию)
     if (url.pathname === "/" || !url.pathname.startsWith("/api/")) {
-      // Для всех остальных Markdown-файлов явно указываем UTF-8, чтобы избежать проблем с кодировкой
       if (url.pathname.endsWith(".md")) {
         const assetResp = await env.ASSETS.fetch(request);
         const headers = new Headers(assetResp.headers);
         headers.set("Content-Type", "text/markdown; charset=utf-8");
         headers.set("X-Static-By", "worker-md");
-        return new Response(assetResp.body, {
-          status: assetResp.status,
-          statusText: assetResp.statusText,
-          headers,
-        });
+        return new Response(assetResp.body, { status: assetResp.status, statusText: assetResp.statusText, headers });
       }
-
       const assetResp = await env.ASSETS.fetch(request);
       const headers = new Headers(assetResp.headers);
       headers.set("X-Static-By", "worker");
-      return new Response(assetResp.body, {
-        status: assetResp.status,
-        statusText: assetResp.statusText,
-        headers,
-      });
+      return new Response(assetResp.body, { status: assetResp.status, statusText: assetResp.statusText, headers });
     }
 
-    // 🧠 API CHAT
-    if (url.pathname === "/api/chat" && request.method === "POST") {
+    if (url.pathname === "/api/chat" && request.method === "POST")
       return handleChatRequest(request, env);
-    }
 
-    // 🗃 MODELS API
     if (url.pathname === "/api/models" && request.method === "GET") {
-      const base = {
+      return new Response(JSON.stringify({
         default: DEFAULT_MODEL_KEY,
-        models: Object.keys(SUPPORTED_MODELS).map((k) => ({ key: k, id: SUPPORTED_MODELS[k] }))
-      };
-      return new Response(JSON.stringify(base), { headers: { "content-type": "application/json" } });
+        models: Object.keys(SUPPORTED_MODELS).map(k => ({ key: k, id: SUPPORTED_MODELS[k] }))
+      }), { headers: { "content-type": "application/json" } });
     }
 
-    // ❌ НЕИЗВЕСТНАЯ ТОЧКА ВХОДА
     return new Response("Not found", { status: 404 });
   }
 };
 
-// --- УТИЛИТЫ ДЛЯ RETRY И FALLBACK ---
+// --- FALLBACK & RETRY ---
 
-// Список fallback-моделей в порядке надёжности
 const FALLBACK_MODELS = [
-  "gemini-3-flash-preview",   // Рабочая и стабильная модель нового поколения
-  "claude-opus-4-7",          // Актуальный флагман Anthropic
-  "claude-sonnet-4-6",        // Стабильная модель 4.6
-  "claude-haiku-4-5",         // Быстрая модель
-  "Llama-3.3-70b",            // Самая стабильная Cloudflare модель
-  "gemini-2.5-flash"          // Google fallback
+  "gemini-3-flash-preview",
+  "claude-sonnet-4-6",
+  "claude-opus-4-7",
+  "claude-haiku-4-5",
+  "mistral-medium-latest",
+  "Llama-3.3-70b",
+  "gemini-2.5-flash",
 ];
 
-// Retry с экспоненциальным бэкофом
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error;
-
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, baseDelay = 1000): Promise<T> {
+  let lastError: any;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
+    try { return await fn(); }
+    catch (error: any) {
       lastError = error;
-
-      if (attempt === maxRetries) {
-        throw new Error(`Ошибка после ${maxRetries + 1} попыток: ${error.message}`);
-      }
-
-      const delay = baseDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      if (attempt === maxRetries) throw new Error(`Ошибка после ${maxRetries + 1} попыток: ${error.message}`);
+      await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
     }
   }
-
-  throw lastError!;
+  throw lastError;
 }
 
-// Получение fallback-модели
 function getFallbackModel(currentModel: string): string | null {
-  const currentIndex = FALLBACK_MODELS.indexOf(currentModel);
-  if (currentIndex === -1) {
-    return FALLBACK_MODELS[0]; // Если текущая не в списке, берём первую
-  }
-  return FALLBACK_MODELS[currentIndex + 1] || null;
+  const i = FALLBACK_MODELS.indexOf(currentModel);
+  if (i === -1) return FALLBACK_MODELS[0];
+  return FALLBACK_MODELS[i + 1] || null;
 }
-
-// --- ЛОГИКА ОБРАБОТКИ ---
 
 interface ChatResult {
   response: string;
@@ -377,199 +255,97 @@ interface ChatResult {
 }
 
 function normalizeModelKey(key: string): string {
-  const lowerKey = key.toLowerCase();
-  const keys = Object.keys(SUPPORTED_MODELS);
-  for (const k of keys) {
-    if (k.toLowerCase() === lowerKey) {
-      return k;
-    }
-  }
+  const lower = key.toLowerCase();
+  for (const k of Object.keys(SUPPORTED_MODELS))
+    if (k.toLowerCase() === lower) return k;
   return DEFAULT_MODEL_KEY;
 }
 
 async function handleChatRequestLogic(requestData: any, env: Env): Promise<ChatResult> {
   const messages: any[] = Array.isArray(requestData.messages) ? requestData.messages : [];
-  let modelKey = requestData.model || DEFAULT_MODEL_KEY;
-  modelKey = normalizeModelKey(modelKey);
+  let modelKey = normalizeModelKey(requestData.model || DEFAULT_MODEL_KEY);
   const fileContents = requestData.fileContents;
 
   let chatMessages: any[] = [...messages];
-  if (fileContents) {
-    chatMessages.unshift({ role: "system", content: `Содержимое загруженных файлов:\n${fileContents}` });
+  if (fileContents) chatMessages.unshift({ role: "system", content: `Содержимое загруженных файлов:\n${fileContents}` });
+
+  // OOM защита — режем историю до 15 сообщений
+  const MAX_FOR_MODEL = 15;
+  if (chatMessages.length > MAX_FOR_MODEL) {
+    const sys = chatMessages.filter(m => m.role === 'system');
+    const nonSys = chatMessages.filter(m => m.role !== 'system');
+    chatMessages = [...sys, ...nonSys.slice(-MAX_FOR_MODEL)];
   }
 
-  // Функция для выполнения запроса с конкретной моделью
   async function executeWithModel(currentModelKey: string): Promise<ChatResult> {
     const currentModelId = SUPPORTED_MODELS[currentModelKey] || SUPPORTED_MODELS[DEFAULT_MODEL_KEY];
-
     let currentChatMessages = [...chatMessages];
-    if (!currentChatMessages.some((msg) => msg.role === "system")) {
-      const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace("{MODEL_NAME}", currentModelKey);
-      currentChatMessages.unshift({ role: "system", content: systemPrompt });
-    }
+    if (!currentChatMessages.some(m => m.role === "system"))
+      currentChatMessages.unshift({ role: "system", content: SYSTEM_PROMPT_TEMPLATE.replace("{MODEL_NAME}", currentModelKey) });
 
     let content = "";
-    console.log(`[Routing] Модель: ${currentModelKey} → ${currentModelId}`);
-    
-    if (currentModelKey.includes("gemini") || currentModelKey.includes("gemma")) {
-      console.log(`[Routing] Используем handleGoogleDirect`);
+    const keyLower = currentModelKey.toLowerCase();
+
+    if (keyLower.includes("gemini") || keyLower.includes("gemma")) {
       content = await handleGoogleDirect(currentModelId, currentChatMessages, env);
-    } else if (currentModelKey.includes("mistral")) {
-      console.log(`[Routing] Используем handleMistralDirect`);
+    } else if (keyLower.includes("mistral") || keyLower.includes("ministral") || keyLower.includes("magistral") || keyLower.includes("codestral")) {
       content = await handleMistralDirect(currentModelId, currentChatMessages, env);
-    } else if (currentModelKey.includes("claude")) {
-      console.log(`[Routing] Используем handleAnthropicDirect`);
+    } else if (keyLower.includes("claude")) {
       content = await handleAnthropicDirect(currentModelId, currentChatMessages, env);
-    } else if (currentModelId.includes("/") && !currentModelId.startsWith("@")) {
-      console.log(`[Routing] Используем handleOpenRouterDirect`);
-      content = await handleOpenRouterDirect(currentModelId, currentChatMessages, env);
     } else {
-      console.log(`[Routing] Используем handleCloudflareModel`);
-      const response = await handleCloudflareModel(currentModelId, currentChatMessages, env);
-
-      // Handle union type: ReadableStream | { response, choices, usage, ... } | ...
-      if (currentModelId.includes("gpt-oss")) {
-        // GPT-OSS models return a complex object with output array
-        if (response && typeof response === "object" && "output" in response) {
-          const respAsObj = response as any;
-          if (Array.isArray(respAsObj.output) && respAsObj.output[0]?.content?.[0]?.text) {
-            content = respAsObj.output[0].content[0].text;
-          }
-        }
-      }
-
-      if (!content) {
-        // Check for string response (simple models)
-        if (typeof response === "string") {
-          content = response;
-        }
-        // Check for response object with common properties
-        else if (response && typeof response === "object") {
-          const respAsObj = response as any;
-          if (respAsObj.response) {
-            content = respAsObj.response;
-          } else if (respAsObj.choices?.[0]?.message?.content) {
-            content = respAsObj.choices[0].message.content;
-          } else if (respAsObj.output?.[0]?.content?.[0]?.text) {
-            content = respAsObj.output[0].content[0].text;
-          } else if (respAsObj.usage) {
-            content = "Модель вернула только служебную статистику (usage), без текста. Попробуйте переформулировать запрос.";
-          } else {
-            content = JSON.stringify(response);
-          }
-        }
-      }
+      const response: any = await handleCloudflareModel(currentModelId, currentChatMessages, env);
+      if (typeof response === "string") content = response;
+      else if (response?.response) content = response.response;
+      else if (response?.choices?.[0]?.message?.content) content = response.choices[0].message.content;
+      else if (response?.output?.[0]?.content?.[0]?.text) content = response.output[0].content[0].text;
+      else content = JSON.stringify(response);
     }
 
-    const signature = `\n\n---\n**Апостол Царства AI ${currentModelKey.toUpperCase()}**`;
-    if (content.length > 0 && content[0] !== '{') {
-      if (!content.includes("Апостол Царства AI")) {
-        content = content.trim() + signature;
-      }
-    }
+    const sig = `\n\n---\n**Апостол Царства AI ${currentModelKey.toUpperCase()}**`;
+    if (content && content[0] !== '{' && !content.includes("Апостол Царства AI"))
+      content = content.trim() + sig;
 
     return { response: content, model: currentModelKey };
   }
 
-  // Основная логика с retry и fallback
-  let lastError: Error;
-  let usedModel = modelKey;
-
   try {
-    // Сначала пробуем основную модель с retry
     return await retryWithBackoff(() => executeWithModel(modelKey), 3, 1000);
   } catch (error: any) {
-    lastError = error;
-
-    // Если основная модель не сработала, пробуем fallback-модели
+    let lastError = error;
     let fallbackModel = getFallbackModel(modelKey);
     while (fallbackModel) {
       try {
-        console.log(`Пробуем fallback-модель: ${fallbackModel}`);
         const result = await retryWithBackoff(() => executeWithModel(fallbackModel!), 2, 500);
-        return {
-          ...result,
-          fallback: true,
-          originalModel: modelKey,
-          error: lastError.message
-        } as ChatResult;
-      } catch (fallbackError: any) {
-        console.log(`Fallback-модель ${fallbackModel} тоже не сработала:`, fallbackError.message);
-        lastError = fallbackError;
-        fallbackModel = getFallbackModel(fallbackModel);
-      }
+        return { ...result, fallback: true, originalModel: modelKey, error: lastError.message };
+      } catch (e: any) { lastError = e; fallbackModel = getFallbackModel(fallbackModel); }
     }
-
-    // Если все модели не сработали
     throw new Error(`Все модели недоступны. Последняя ошибка: ${lastError.message}`);
   }
 }
 
 async function handleChatRequest(request: Request, env: Env) {
   try {
-    // Rate limiting проверка (пропускаем для локальной разработки)
     if (env.RATE_LIMIT_KV) {
-      const clientIP = getClientIP(request);
-      const rateLimitResult = await checkRateLimit(env, clientIP);
-
-      if (!rateLimitResult.allowed) {
-        const resetTime = rateLimitResult.resetTime || 0;
-        const waitTime = Math.max(0, resetTime - Math.floor(Date.now() / 1000));
-
-        return new Response(JSON.stringify({
-          error: `Rate limit exceeded. Попробуйте через ${waitTime} секунд.`,
-          retryable: true,
-          retryAfter: waitTime,
-          rateLimit: true
-        }), {
-          status: 429,
-          headers: {
-            "content-type": "application/json",
-            "Retry-After": waitTime.toString()
-          }
+      const ip = getClientIP(request);
+      const rl = await checkRateLimit(env, ip);
+      if (!rl.allowed) {
+        const waitTime = Math.max(0, (rl.resetTime || 0) - Math.floor(Date.now() / 1000));
+        return new Response(JSON.stringify({ error: `Rate limit exceeded. Попробуйте через ${waitTime} секунд.`, retryable: true, retryAfter: waitTime, rateLimit: true }), {
+          status: 429, headers: { "content-type": "application/json", "Retry-After": waitTime.toString() }
         });
       }
     }
-
     const requestData: any = await request.json();
-
-    // Валидация запроса
     const validation = validateRequest(requestData);
-    if (!validation.valid) {
-      return new Response(JSON.stringify({
-        error: validation.error,
-        retryable: false,
-        validation: true
-      }), {
-        status: 400,
-        headers: { "content-type": "application/json" }
-      });
-    }
+    if (!validation.valid)
+      return new Response(JSON.stringify({ error: validation.error, retryable: false, validation: true }), { status: 400, headers: { "content-type": "application/json" } });
 
     const result = await handleChatRequestLogic(requestData, env);
-
-    // Если был fallback, добавляем информацию в ответ
-    if (result.fallback) {
-      console.log(`Использована fallback-модель ${result.model} вместо ${result.originalModel}`);
-    }
-
     return new Response(JSON.stringify(result), {
-      headers: {
-        "content-type": "application/json",
-        "X-Fallback-Used": result.fallback ? "true" : "false",
-        "X-Model-Used": result.model
-      }
+      headers: { "content-type": "application/json", "X-Fallback-Used": result.fallback ? "true" : "false", "X-Model-Used": result.model }
     });
   } catch (error: any) {
-    console.error("Ошибка в handleChatRequest:", error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      retryable: true,
-      timestamp: new Date().toISOString()
-    }), {
-      status: 500,
-      headers: { "content-type": "application/json" }
-    });
+    return new Response(JSON.stringify({ error: error.message, retryable: true, timestamp: new Date().toISOString() }), { status: 500, headers: { "content-type": "application/json" } });
   }
 }
 
@@ -577,383 +353,117 @@ async function handleTelegramWebhook(request: Request, env: Env) {
   try {
     const update: any = await request.json();
     if (!update.message?.text) return new Response("OK", { status: 200 });
-
-    // Используем модель по умолчанию для Telegram бота
-    const requestData = {
-      messages: [{ role: "user", content: update.message.text }],
-      model: DEFAULT_MODEL_KEY  // Используем Llama-3.3-70b по умолчанию
-    };
-
-    const result = await handleChatRequestLogic(requestData, env);
+    const result = await handleChatRequestLogic({ messages: [{ role: "user", content: update.message.text }], model: DEFAULT_MODEL_KEY }, env);
     const token = env.TELEGRAM_TOKEN || env.TELEGRAM_BOT_TOKEN;
-
-    await fetch(`${TELEGRAM_API_URL}${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: update.message.chat.id,
-        text: result.response,
-        parse_mode: "Markdown"
-      })
-    });
-
+    await fetch(`${TELEGRAM_API_URL}${token}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: update.message.chat.id, text: result.response, parse_mode: "Markdown" }) });
     return new Response("OK", { status: 200 });
-  } catch (e: any) {
-    console.error("Telegram webhook error:", e);
-    return new Response("OK", { status: 200 }); // Важно — всегда успешный ответ
-  }
+  } catch { return new Response("OK", { status: 200 }); }
 }
 
 async function handleCloudflareModel(modelId: string, messages: any[], env: Env) {
-  let payload: any = modelId.startsWith("@cf/openai/")
-    ? { input: messages.map((m) => `${m.role}: ${m.content}`).join("\n") }
+  const payload: any = modelId.startsWith("@cf/openai/")
+    ? { input: messages.map(m => `${m.role}: ${m.content}`).join("\n") }
     : { messages };
-
-  payload.max_tokens = 2048; // Уменьшено для совместимости с ограничениями
-
-  // Добавляем обработку ошибок для AI.run
+  payload.max_tokens = 2048;
   try {
-    // Type assertion to bypass TypeScript's strict keyof check
-    const response = await env.AI.run(modelId as any, payload);
-    return response;
+    return await env.AI.run(modelId as any, payload);
   } catch (error: any) {
-    // Если получаем ошибку связанную с OAuth/consent, возвращаем специальное сообщение
-    if (error.message && (error.message.includes("consent") || error.message.includes("access_denied"))) {
-      throw new Error("OAuth consent error: Please check your Cloudflare AI settings and ensure the model is properly authorized.");
-    }
+    if (error.message?.includes("consent") || error.message?.includes("access_denied"))
+      throw new Error("OAuth consent error: Please check your Cloudflare AI settings.");
     throw error;
   }
 }
 
-/**
- * handleGoogleDirect - Оживление Легиона Апостолов Gemini.
- * Реализует ротацию API-ключей: при исчерпании лимита (429)
- * или перегрузке (503) автоматически переключается на следующий ключ.
- * Документация: https://ai.google.dev/gemini-api/docs/grounding
- */
 async function handleGoogleDirect(modelId: string, messages: any[], env: Env) {
-  // Читаем все ключи: GEMINI_API_KEYS (через запятую), затем одиночные ключи
   const keysString = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || "";
   const apiKeys = keysString.split(",").map((k: string) => k.trim()).filter(Boolean);
-
-  if (apiKeys.length === 0) {
-    throw new Error("Google API keys not configured. Set GEMINI_API_KEYS in Cloudflare secrets.");
-  }
+  if (!apiKeys.length) throw new Error("Google API keys not configured. Set GEMINI_API_KEYS.");
 
   const contents = messages.filter(m => m.role !== 'system').map(m => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }]
   }));
-
   const systemInstructionText = messages.find(m => m.role === 'system')?.content || "";
   let lastErrMsg = "Неизвестная ошибка";
 
-  // Перебираем ключи по очереди — как Легион Апостолов, где один сменяет другого
   for (let i = 0; i < apiKeys.length; i++) {
-    const apiKey = apiKeys[i];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
-
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKeys[i]}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: {
-            parts: [{ text: systemInstructionText }]
-          },
-          tools: [{ google_search: {} }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048
-          }
-        })
+        body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemInstructionText }] }, tools: [{ google_search: {} }], generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } })
       });
-
-      // При лимите (429) или перегрузке (503) — пробуем следующий ключ
-      if (res.status === 429 || res.status === 503) {
-        const errText = await res.text();
-        let errJson: any;
-        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
-        lastErrMsg = errJson?.error?.message || errText || res.statusText;
-        console.warn(`Ключ №${i + 1} вернул HTTP ${res.status}. Переключаюсь на следующий...`);
-        continue;
-      }
-
-      // Прочие HTTP-ошибки — возвращаем сразу без перебора
-      if (!res.ok) {
-        const errText = await res.text();
-        let errJson: any;
-        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
-        const errMsg = errJson?.error?.message || errText || res.statusText;
-        return `Апостол Gemini столкнулся с преградой (HTTP ${res.status}): ${errMsg}`;
-      }
-
+      if (res.status === 401 || res.status === 429 || res.status === 503) { lastErrMsg = await res.text(); continue; }
+      if (!res.ok) { lastErrMsg = `HTTP ${res.status}: ${await res.text()}`; continue; }
       const data: any = await res.json();
-
-      // Ошибка квоты внутри 200-ответа — пробуем следующий ключ
-      if (data.error) {
-        const errMsg = data.error.message || "";
-        if (errMsg.includes("quota") || errMsg.includes("rate limit") || errMsg.includes("demand")) {
-          console.warn(`Ключ №${i + 1} вернул ошибку квоты. Переключаюсь...`);
-          lastErrMsg = errMsg;
-          continue;
-        }
-        return `Апостол Gemini столкнулся с преградой: ${errMsg}`;
-      }
-
-      // Успешный ответ — собираем текст из кандидатов
-      const candidate = data.candidates?.[0];
-      const textPart = candidate?.content?.parts?.find((p: any) => p.text);
-
-      if (textPart && textPart.text) {
-        return textPart.text;
-      }
-
-      if (candidate?.groundingMetadata) {
-        return "Апостол изучил данные Google, но не смог облечь истину в слова. Попробуйте уточнить вопрос.";
-      }
-
+      if (data.error) { lastErrMsg = data.error.message; continue; }
+      const textPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.text);
+      if (textPart?.text) return textPart.text;
       return "Апостол Gemini ищет истину в глубоких водах... (ответ пуст).";
-
-    } catch (error: any) {
-      console.error(`Ошибка сети при запросе с ключом №${i + 1}:`, error.message);
-      lastErrMsg = error.message;
-      continue; // Пробуем следующий ключ при сетевой ошибке
-    }
+    } catch (e: any) { lastErrMsg = e.message; }
   }
-
-  // Все ключи перебраны — никто не смог помочь
-  throw new Error(`Все API-ключи Google исчерпали лимиты или недоступны. Последняя ошибка: ${lastErrMsg}`);
+  throw new Error(`Все API-ключи Google исчерпаны. Последняя ошибка: ${lastErrMsg}`);
 }
-
-async function handleOpenRouterDirect(modelId: string, messages: any[], env: Env) {
-  const apiKey = env.OPENROUTER_API_KEY;
-
-  // Определение максимального количества токенов в зависимости от модели
-  let maxTokens = 800; // По умолчанию для бесплатных моделей
-
-  // Для платных моделей можно использовать больше токенов
-  if (!modelId.includes(":free")) {
-    maxTokens = 2048;
-  }
-
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      max_tokens: maxTokens  // Используем адаптивное значение
-    })
-  });
-
-  const data: any = await res.json();
-
-  if (data.error) {
-    const msg = data.error.message || data.error;
-
-    // Обработка специфических ошибок OpenRouter
-    if (msg.includes("quota") || msg.includes("credit") || msg.includes("token")) {
-      throw new Error("OpenRouter quota or credit limit exceeded. Check your account or use a different model.");
-    }
-
-    if (msg.includes("endpoints")) {
-      throw new Error("Model temporarily unavailable. Try a different model.");
-    }
-
-    return `Ошибка OpenRouter: ${msg}`;
-  }
-
-  return data.choices?.[0]?.message?.content || "Модель OpenRouter не вернула текстовый ответ.";
-}
-
-// =========================================================================
-// MISTRAL AI HANDLER
-// =========================================================================
 
 async function handleMistralDirect(modelId: string, messages: any[], env: Env) {
-  // Читаем все ключи: MISTRAL_API_KEYS (через запятую), затем одиночный ключ
   const keysString = env.MISTRAL_API_KEYS || env.MISTRAL_API_KEY || "";
   const apiKeys = keysString.split(",").map((k: string) => k.trim()).filter(Boolean);
+  if (!apiKeys.length) throw new Error("Mistral API keys not configured. Set MISTRAL_API_KEYS.");
 
-  if (apiKeys.length === 0) {
-    throw new Error("Mistral API keys not configured. Set MISTRAL_API_KEYS in Cloudflare secrets.");
-  }
-
-  // Определение максимального количества токенов в зависимости от модели
-  let maxTokens = 1024; // По умолчанию
-  
-  // Адаптивное определение max_tokens для разных моделей Mistral
-  if (modelId.includes("tiny")) {
-    maxTokens = 800;
-  } else if (modelId.includes("small")) {
-    maxTokens = 1500;
-  } else if (modelId.includes("medium")) {
-    maxTokens = 2048;
-  } else if (modelId.includes("large")) {
-    maxTokens = 4096;
-  }
+  let maxTokens = 1024;
+  if (modelId.includes("tiny")) maxTokens = 800;
+  else if (modelId.includes("small") || modelId.includes("3b")) maxTokens = 1500;
+  else if (modelId.includes("medium") || modelId.includes("8b") || modelId.includes("14b")) maxTokens = 2048;
+  else if (modelId.includes("large") || modelId.includes("codestral")) maxTokens = 4096;
 
   let lastErrMsg = "Неизвестная ошибка";
 
-  // Перебираем ключи по очереди
   for (let i = 0; i < apiKeys.length; i++) {
-    const apiKey = apiKeys[i];
-
     try {
       const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: modelId,
-          messages: messages,
-          max_tokens: maxTokens,
-          temperature: 0.7,
-          top_p: 1.0
-        })
+        headers: { "Authorization": `Bearer ${apiKeys[i]}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId, messages, max_tokens: maxTokens, temperature: 0.7, top_p: 1.0 })
       });
-
-      // При лимите (429) или перегрузке (503) — пробуем следующий ключ
-      if (res.status === 429 || res.status === 503) {
-        const errText = await res.text();
-        let errJson: any;
-        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
-        lastErrMsg = errJson?.error?.message || errText || res.statusText;
-        console.warn(`Mistral ключ №${i + 1} вернул HTTP ${res.status}. Переключаюсь на следующий...`);
-        continue;
-      }
-
-      // Прочие HTTP-ошибки — возвращаем сразу без перебора
-      if (!res.ok) {
-        const errText = await res.text();
-        let errJson: any;
-        try { errJson = JSON.parse(errText); } catch (e) { errJson = null; }
-        const errMsg = errJson?.error?.message || errText || res.statusText;
-        return `Апостол Mistral столкнулся с преградой (HTTP ${res.status}): ${errMsg}`;
-      }
-
+      if (res.status === 401 || res.status === 429 || res.status === 503) { lastErrMsg = await res.text(); continue; }
+      if (!res.ok) { lastErrMsg = `HTTP ${res.status}: ${await res.text()}`; continue; }
       const data: any = await res.json();
-
-      // Ошибка квоты внутри 200-ответа — пробуем следующий ключ
-      if (data.error) {
-        const errMsg = data.error.message || "";
-        if (errMsg.includes("quota") || errMsg.includes("rate limit") || errMsg.includes("demand")) {
-          console.warn(`Mistral ключ №${i + 1} вернул ошибку квоты. Переключаюсь...`);
-          lastErrMsg = errMsg;
-          continue;
-        }
-        return `Апостол Mistral столкнулся с преградой: ${errMsg}`;
-      }
-
-      // Успешный ответ
+      if (data.error) { lastErrMsg = data.error.message || JSON.stringify(data.error); continue; }
       return data.choices?.[0]?.message?.content || "Модель Mistral не вернула текстовый ответ.";
-
-    } catch (error: any) {
-      console.error(`Ошибка сети при запросе с Mistral ключом №${i + 1}:`, error.message);
-      lastErrMsg = error.message;
-      continue; // Пробуем следующий ключ при сетевой ошибке
-    }
+    } catch (e: any) { lastErrMsg = e.message; }
   }
-
-  // Все ключи перебраны — никто не смог помочь
-  throw new Error(`Все API-ключи Mistral исчерпали лимиты или недоступны. Последняя ошибка: ${lastErrMsg}`);
+  throw new Error(`Все API-ключи Mistral исчерпаны. Последняя ошибка: ${lastErrMsg}`);
 }
 
-// =========================================================================
-// ANTHROPIC AI HANDLER
-// =========================================================================
-
-// =========================================================================
-// ANTHROPIC AI HANDLER (обновлён согласно рабочему примеру)
-// =========================================================================
-
 async function handleAnthropicDirect(modelId: string, messages: any[], env: Env) {
-  // Читаем все ключи: ANTHROPIC_API_KEYS (через запятую), затем одиночный ключ
   const keysString = env.ANTHROPIC_API_KEYS || env.ANTHROPIC_API_KEY || "";
   const apiKeys = keysString.split(",").map((k: string) => k.trim()).filter(Boolean);
+  if (!apiKeys.length) throw new Error("Anthropic API keys not configured. Set ANTHROPIC_API_KEYS.");
 
-  console.log(`[Anthropic] Загружено ${apiKeys.length} ключей для модели ${modelId}`);
-
-  if (apiKeys.length === 0) {
-    console.error("[Anthropic] Нет настроенных ключей!");
-    throw new Error("Anthropic API keys not configured. Set ANTHROPIC_API_KEYS in Cloudflare secrets.");
-  }
-
-  // Форматируем сообщения для Anthropic API
-  const formattedMessages = messages.map(msg => ({
-    role: msg.role === 'assistant' ? 'assistant' : 'user',
-    content: msg.content
-  }));
-
-  // Системный промпт
-  const systemPrompt = messages.find(m => m.role === 'system')?.content || 
+  const formattedMessages = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+  const systemPrompt = messages.find(m => m.role === 'system')?.content ||
     "Ты - Апостол Claude, мудрый помощник Льва Николаевича. Отвечай на русском языке.";
 
-  // Пробуем все ключи по очереди
-  let lastError: any = null;
-  
+  const isV4Plus = /claude-(opus|sonnet|haiku|fable)-[4-9]/.test(modelId);
+  const maxTokens = isV4Plus ? 8192 : 4096;
+
+  let lastErrMsg = "Неизвестная ошибка";
+
   for (let i = 0; i < apiKeys.length; i++) {
-    const apiKey = apiKeys[i];
-    
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: modelId,
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: formattedMessages,
-        })
+        headers: { "x-api-key": apiKeys[i], "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId, max_tokens: maxTokens, system: systemPrompt, messages: formattedMessages })
       });
-
-      // Успешный ответ
-      if (res.ok) {
-        const data: any = await res.json();
-        
-        if (data.content && data.content[0]?.text) {
-          console.log(`[Anthropic] Успех с ключом №${i + 1}`);
-          return data.content[0].text;
-        }
-        
-        return "Модель Claude не вернула текстовый ответ.";
-      }
-
-      // Обработка ошибок
-      const errorText = await res.text();
-      let errorJson;
-      try {
-        errorJson = JSON.parse(errorText);
-      } catch (e) {
-        errorJson = null;
-      }
-
-      const errorMsg = errorJson?.error?.message || res.statusText;
-      
-      // При любых ошибках (включая лимиты, нехватку баланса 400 или невалидный ключ 401) -
-      // логируем предупреждение, сохраняем ошибку и переходим к следующему ключу в обойме.
-      console.warn(`[Anthropic] Ключ №${i + 1} вернул ошибку HTTP ${res.status}: ${errorMsg}`);
-      lastError = new Error(`HTTP ${res.status}: ${errorMsg}`);
-      continue;
-
-    } catch (error: any) {
-      console.error(`[Anthropic] Сетевая ошибка с ключом №${i + 1}: ${error.message}`);
-      lastError = error;
-      continue;
-    }
+      if (res.status === 401 || res.status === 429 || res.status === 503) { lastErrMsg = await res.text(); continue; }
+      if (!res.ok) { lastErrMsg = await res.text(); continue; }
+      const data: any = await res.json();
+      if (data.error) { lastErrMsg = data.error.message || JSON.stringify(data.error); continue; }
+      return data.content?.[0]?.text || "Модель Claude не вернула текстовый ответ.";
+    } catch (e: any) { lastErrMsg = e.message; }
   }
-
-  // Все ключи перебраны
-  throw new Error(`Все API-ключи Anthropic исчерпали лимиты. Последняя ошибка: ${lastError?.message || 'неизвестно'}`);
+  throw new Error(`Все API-ключи Anthropic исчерпаны. Последняя ошибка: ${lastErrMsg}`);
 }
