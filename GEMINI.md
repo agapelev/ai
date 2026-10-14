@@ -54,22 +54,32 @@
 
 ---
 
-## ⏸ ТОЧКА ОСТАНОВА — 12.10.2026 (коммит `ff839b1`)
+## ⏸ ТОЧКА ОСТАНОВА — 14.10.2026 (коммит `7923c62`)
 
-**Статус:** Production задеплоен. Все провайдеры работают.
+**Статус:** Production задеплоен (версия `5bd07f99-ea1a-498d-9a59-9b0b4dbb1562`). Telegram бот работает в боевом режиме.
 
-### Что сделано:
-- OpenRouter удалён полностью
-- Роутинг исправлен (регистронезависимый `toLowerCase()`)
-- 23 бесплатные модели Cloudflare Workers AI
-- Все модели Anthropic (14) и Mistral (13) из живого API
-- Ротация ключей: `401/429/503` → следующий ключ
-- Секреты выставлены через `wrangler secret put` (постоянно)
+### Что сделано в сессии 14.10.2026 (Gemini 3.8 Flash / Пастор Лев):
+- **Telegram Bot (@ShekinahCloud_bot):**
+  - Разобрана проблема с `TELEGRAM_TOKEN`, ключ раскомментирован в `.dev.vars`.
+  - Устранена блокировка версионирования Cloudflare (Gradual Deployments), заблокировавшая добавление секретов.
+  - Секрет `TELEGRAM_TOKEN` перманентно записан в Cloudflare через `wrangler secret put TELEGRAM_TOKEN --name ai`.
+  - Вебхук успешно переключен на `https://ai.dessyatykh.workers.dev/bot-update` через `/setup`.
+  - Бот в Telegram полностью функционирует с моделью `Llama-3.3-70b` и соборным промптом Цитадели.
+- **Шлюз /bot-update:**
+  - Реализован эстетичный экран шлюза для браузерных GET-запросов (тёмно-золотой дизайн Цитадели, статус активности, цитата Еф. 2:10, навигация).
+- **Безопасность и канон:**
+  - Интегрирован `DOMPurify` для санитизации контента.
+  - Внесен Соборный Канон Цитадели `VIBE.md`.
+  - Добавлен `*.bak` в `.gitignore`.
+- **Git и Деплой:**
+  - Коммит `7923c62` запушен в `origin/main` на GitHub.
+  - Прямой деплой через `wrangler deploy` на Cloudflare Workers (версия `5bd07f99-ea1a-498d-9a59-9b0b4dbb1562`).
+  - Smoke test: HTTP 200 OK.
 
-### Для деплоя (GitHub Actions не работает для этого аккаунта):
+### Для деплоя (прямой через Wrangler CLI):
 ```bash
 cd /home/lev/Проекты/GitHub-dessyatykh@gmail.com/ai
-CLOUDFLARE_API_TOKEN=<CLOUDFLARE_API_TOKEN> npx wrangler deploy
+npx wrangler deploy
 ```
 
 ---

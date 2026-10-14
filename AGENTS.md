@@ -371,34 +371,38 @@ npm run lint:commits    # Conventional commit check
 
 ---
 
-## ⏸ ТОЧКА ОСТАНОВА — 12.10.2026 (коммит `ff839b1`)
+## ⏸ ТОЧКА ОСТАНОВА — 14.10.2026 (коммит `7923c62`)
 
 **Сессия завершена. Следующему агенту — читать этот раздел первым.**
 
-### Что было сделано в сессии 12.10.2026 (OpenCode / Claude Sonnet 4.6):
-- Полный экспертный аудит проекта (25 проблем задокументировано)
-- OpenRouter удалён полностью из всех рабочих файлов
-- Исправлен критический баг роутинга (`includes()` → `toLowerCase().includes()`)
-- Добавлены все бесплатные модели Cloudflare Workers AI (23 модели по живому API)
-- Anthropic: все 14 актуальных моделей из живого API (`claude-sonnet-5-5` ... `claude-3-5-sonnet`)
-- Mistral: все chat-модели из живого API (`codestral`, `ministral`, `magistral`, `mistral-*`)
-- Ротация ключей для всех провайдеров: обработка `401/429/503` → переход к следующему ключу
-- Секреты выставлены через `wrangler secret put` (сохраняются навсегда):
-  - `ANTHROPIC_API_KEYS` — 4 ключа
-  - `GEMINI_API_KEYS` — 3 ключа
-  - `MISTRAL_API_KEYS` — 4 ключа
-- Деплой: коммит `ff839b1` → `https://ai.dessyatykh.workers.dev` (31.94 KiB, версия `70198394`)
+### Что было сделано в сессии 14.10.2026 (Gemini 3.8 Flash / Пастор Лев):
+- **Telegram Bot (@ShekinahCloud_bot):**
+  - Разобрана и решена проблема с `TELEGRAM_TOKEN`: раскомментирован в `.dev.vars` для локального контура.
+  - Разрешена блокировка версионирования Cloudflare (Gradual Deployments): развернута версия `6c142e1b-f9af...` на 100% трафика, что открыло возможность записи секретов.
+  - Секрет `TELEGRAM_TOKEN` перманентно загружен в зашифрованное хранилище Cloudflare Workers через `wrangler secret put TELEGRAM_TOKEN --name ai`.
+  - Зарегистрирован постоянный вебхук Telegram через `https://ai.dessyatykh.workers.dev/setup` на эндпоинт `/bot-update`.
+  - Проверена живая работа бота в Telegram: базовая модель `Llama-3.3-70b` успешно отвечает с богословским и философским системным промптом Цитадели.
+- **Шлюз /bot-update (UI/UX):**
+  - Вместо ошибки 404 при GET-запросах из браузера реализована эстетичная статус-страница в тёмно-золотой стилистике Цитадели «Shekinah Cloud» с пульсирующим статусом активности шлюза, цитатой из Еф. 2:10 и навигацией в чат и к боту.
+- **Безопасность и канон:**
+  - Интегрирован `DOMPurify` для санитации Markdown.
+  - Внесен канонический архитектурный манифест `VIBE.md`.
+  - Добавлен `*.bak` в `.gitignore`.
+- **Git и Деплой:**
+  - Коммит `7923c62` запушен в `main` на GitHub (`https://github.com/agapelev/ai.git`).
+  - Выполнен прямой деплой через `wrangler deploy` на Cloudflare Workers (версия `5bd07f99-ea1a-498d-9a59-9b0b4dbb1562`).
+  - Пройден smoke test: HTTP 200 OK.
 
 ### Важно для следующей сессии:
-- **GitHub Actions не работает** для аккаунта `dessyatykh@gmail.com` — деплоить напрямую:
+- **Деплой:** из-за ограничений биллинга/аккаунта GitHub Actions не используется — деплоить напрямую через CLI:
   ```bash
-  CLOUDFLARE_API_TOKEN=<CLOUDFLARE_API_TOKEN> npx wrangler deploy
+  npx wrangler deploy
   ```
-- **Пуш на GitHub** — через токен (нет `workflow` scope, поэтому `.github/workflows/` не трогать):
-  ```bash
-  git push https://agapelev:<TOKEN>@github.com/agapelev/ai.git main
-  ```
-- **Секреты** выставлены через CLI — не трогать, они сохранены в Cloudflare
+- **Секреты Cloudflare:** Полный набор (5 секретов) сохранен в защищенном хранилище Workers навсегда:
+  `ANTHROPIC_API_KEYS`, `CLOUDFLARE_KEY`, `GEMINI_API_KEYS`, `MISTRAL_API_KEYS`, `TELEGRAM_TOKEN`.
+- **Telegram Bot Webhook:** Привязан к `https://ai.dessyatykh.workers.dev/bot-update`. Проверка состояния:
+  `curl -s "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"`.
+- **Пуш в GitHub:** Ветка `main` синхронизирована с `origin/main`.
 
 ---
 
@@ -407,7 +411,8 @@ npm run lint:commits    # Conventional commit check
 | Параметр | Значение |
 |----------|----------|
 | **Production URL** | https://ai.dessyatykh.workers.dev |
-| **Upload size** | 31.94 KiB (7.36 KiB gzipped) |
+| **Telegram Bot** | @ShekinahCloud_bot (активен, webhook на `/bot-update`) |
+| **Upload size** | 35.95 KiB (8.60 KiB gzipped) |
 | **Worker bindings** | `AI`, `ASSETS`, `RATE_LIMIT_KV` |
 | **Cloudflare Workers AI** | 23 бесплатные модели |
 | **Google Gemini** | 11 моделей (ротация 3 ключей) |
@@ -417,8 +422,8 @@ npm run lint:commits    # Conventional commit check
 | **Rate limit** | 10 requests/minute per IP |
 | **Max history** | 50 messages per chat (15 в контексте) |
 | **Max message length** | 10 000 символов |
-| **Последний коммит** | `ff839b1` от 12.10.2026 |
-| **Последняя версия CF** | `70198394-a98c-4861-b2c7-56eae845e185` |
+| **Последний коммит** | `7923c62` от 14.10.2026 |
+| **Последняя версия CF** | `5bd07f99-ea1a-498d-9a59-9b0b4dbb1562` |
 
 ---
 
