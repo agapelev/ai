@@ -19,8 +19,7 @@
   "dependencies": {
     "dayjs": "^1.11.13",
     "dotenv": "^17.4.2",
-    "grammy": "^1.39.2",
-    "newrelic": "^13.9.0"
+    "grammy": "^1.39.2"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^0.1.0",
@@ -32,6 +31,7 @@
     "@types/node": "24.0.4",
     "@vitest/mocker": "^3.2.4",
     "autoprefixer": "^10.4.20",
+    "dompurify": "^3.4.17",
     "husky": "^8.0.0",
     "marked": "^14.0.0",
     "postcss": "^8.5.1",

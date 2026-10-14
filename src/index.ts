@@ -152,8 +152,75 @@ export default {
   async fetch(request: Request, env: Env, ctx: any) {
     const url = new URL(request.url);
 
-    if (url.pathname === "/bot-update" && request.method === "POST")
-      return handleTelegramWebhook(request, env);
+    if (url.pathname === "/bot-update") {
+      if (request.method === "POST") return handleTelegramWebhook(request, env);
+
+      const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Gateway | Shekinah Cloud</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-cinzel { font-family: 'Cinzel', serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-slate-900/90 border border-amber-500/30 rounded-2xl p-8 shadow-2xl backdrop-blur-md relative overflow-hidden">
+    <div class="absolute -top-16 -right-16 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-tr from-amber-500/20 to-amber-400/10 border border-amber-500/40 rounded-full flex items-center justify-center text-3xl shadow-inner">
+        🕊️
+      </div>
+      <h1 class="text-2xl font-cinzel font-bold text-amber-400 tracking-wide">Shekinah Cloud</h1>
+      <p class="text-xs uppercase tracking-widest text-slate-400 mt-1">Telegram Webhook Gateway</p>
+    </div>
+
+    <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 mb-6 space-y-3">
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-400">Статус шлюза:</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Активен (POST)
+        </span>
+      </div>
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-400">Telegram Bot:</span>
+        <a href="https://t.me/ShekinahCloud_bot" target="_blank" class="text-amber-400 hover:text-amber-300 transition-colors font-medium">@ShekinahCloud_bot ↗</a>
+      </div>
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-400">Основная модель:</span>
+        <span class="text-slate-200 font-mono text-xs">Llama-3.3-70b</span>
+      </div>
+    </div>
+
+    <blockquote class="text-xs italic text-slate-400 border-l-2 border-amber-500/50 pl-3 py-1 mb-6">
+      «Ибо мы — Божие дело, созданы во Христе Иисусе на добрые дела» (Еф. 2:10)
+    </blockquote>
+
+    <div class="flex flex-col gap-2">
+      <a href="/" class="w-full text-center py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition-all shadow-lg shadow-amber-500/20">
+        Открыть Веб-чат Цитадели
+      </a>
+      <a href="https://t.me/ShekinahCloud_bot" target="_blank" class="w-full text-center py-2 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 font-medium text-xs transition-colors border border-slate-700/60">
+        Перейти в Telegram-бот
+      </a>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      return new Response(html, {
+        headers: { "Content-Type": "text/html; charset=utf-8" }
+      });
+    }
 
     if (url.pathname === "/setup") {
       const webhookUrl = `${new URL(request.url).origin}/bot-update`;
